@@ -8,26 +8,26 @@ import (
 	"github.com/jung-kurt/gofpdf"
 )
 type TestColumn struct {
-	Name     string   // e.g. "UT 1"
-	SubCols  []string // e.g. ["Max", "Min", "Obt", "Grade"]
-	Visible  []bool   // e.g. [true, false, true, true] to hide Min
+	Name     string  
+	SubCols  []string 
+	Flag  []bool   
 }
 
 type SubjectData struct {
 	SlNo    string
 	Subject string
-	Tests   map[string][]string // key = test name, value = only visible fields
+	Tests   map[string][]string 
 }
 
 type FooterRow struct {
 	Label   string
-	Visible bool
-	Values  map[string]string // test -> value
+	Flag bool
+	Values  map[string]string 
 }
 type OverAllMaxMinRow struct {
 	Label   string
-	Visible bool
-	Values  map[string]string // test -> value
+	Flag bool
+	Values  map[string]string 
 }
 
 type ScholasticConfig struct {
@@ -40,13 +40,14 @@ type ScholasticConfig struct {
 	Footer      []FooterRow
 	ShowMaxPerSubject    bool
 	ShowMinPersubject   bool
-	showGradePerSubject bool
+	ShowTotalPerTest bool
+	ShowGradePerSubject bool
 	ShowRemarksTest bool
-	showConductPerTest bool
-	showGradePerTest bool
-	showPercentagePerTest bool
-	showOverAllRemarks bool
-	showOverAllConduct bool
+	ShowConductPerTest bool
+	ShowGradePerTest bool
+	ShowPercentagePerTest bool
+	ShowOverAllRemarks bool
+	ShowOverAllConduct bool
 
 }
 
@@ -58,23 +59,24 @@ config := ScholasticConfig{
 	Title:    "PART I - SCHOLASTIC AREA",
 	ShowMaxPerSubject:     true,
 	ShowMinPersubject:     false,
-	showGradePerSubject: true,
+	ShowGradePerSubject: true,
+	ShowTotalPerTest :true,
 	ShowRemarksTest:true,
-	showConductPerTest:true,
-	showGradePerTest:true,
-	showPercentagePerTest:true,
-	showOverAllRemarks:true,
-	showOverAllConduct:true,
+	ShowConductPerTest:true,
+	ShowGradePerTest:true,
+	ShowPercentagePerTest:true,
+	ShowOverAllRemarks:true,
+	ShowOverAllConduct:true,
 	OverAllMaxMin: []OverAllMaxMinRow{
 		{
-			Label:   "Max",
-			Values:  map[string]string{"UT 1": "50", "UT 2": "54", "UT 3": "45"},
-			Visible: true,
+			Label:   "Maximum marks",
+			Values:  map[string]string{"UT 1": "50", "UT 2": "50", "UT 3": "50"},
+			Flag: true,
 		},
 			{
-			Label:   "Min",
-			Values:  map[string]string{"UT 1": "80%", "UT 2": "90%", "UT 3": "75%"},
-			Visible: true,
+			Label:   "Minimun Marks",
+			Values:  map[string]string{"UT 1": "20", "UT 2": "30", "UT 3": "30"},
+			Flag: true,
 		},
 		
 	},
@@ -82,17 +84,17 @@ config := ScholasticConfig{
 		{
 			Name:    "UT 1",
 			SubCols: []string{"Max", "Min", "Obt", "Grade"},
-			Visible: []bool{true, false, true, true}, // show only selected columns
+			Flag: []bool{true, false, true, true}, // show only selected columns
 		},
 		{
 			Name:    "UT 2",
 			SubCols: []string{"Max", "Min", "Obt", "Grade"},
-			Visible: []bool{true, false, true, true},
+			Flag: []bool{true, false, true, true},
 		},
 		{
 			Name:    "UT 3",
 			SubCols: []string{"Max", "Min", "Obt", "Grade"},
-			Visible: []bool{true, false, true, true},
+			Flag: []bool{true, true, true, true},
 		},
 	},
 	Subjects: []SubjectData{
@@ -119,27 +121,27 @@ config := ScholasticConfig{
 		{
 			Label:   "Total",
 			Values:  map[string]string{"UT 1": "50", "UT 2": "54", "UT 3": "45"},
-			Visible: true,
+			Flag: true,
 		},
 			{
 			Label:   "Percentage",
 			Values:  map[string]string{"UT 1": "80%", "UT 2": "90%", "UT 3": "75%"},
-			Visible: true,
+			Flag: true,
 		},
 			{
 			Label:   "Grade",
 			Values:  map[string]string{"UT 1": "A", "UT 2": "A+", "UT 3": "B"},
-			Visible: true,
+			Flag: true,
 		},
 		{
 			Label:   "Remarks",
 			Values:  map[string]string{"UT 1": "good", "UT 2": "vgood", "UT 3": ""},
-			Visible: true,
+			Flag: true,
 		},
 			{
 			Label:   "Conduct",
 			Values:  map[string]string{"UT 1": "good", "UT 2": "vgood", "UT 3": ""},
-			Visible: true,
+			Flag: true,
 		},
 	},
 }
@@ -372,7 +374,7 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 	// count total visible subcolumns
 	totalSubCols := 0
 	for _, t := range cfg.TestColumns {
-		for _, visible := range t.Visible {
+		for _, visible := range t.Flag {
 			if visible {
 				totalSubCols++
 			}
@@ -388,7 +390,7 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 
 	for _, t := range cfg.TestColumns {
 		visibleCount := 0
-		for _, v := range t.Visible {
+		for _, v := range t.Flag {
 			if v {
 				visibleCount++
 			}
@@ -403,12 +405,32 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 
 	for _, t := range cfg.TestColumns {
 		for i, sub := range t.SubCols {
-			if t.Visible[i] {
+			if t.Flag[i] {
 				pdf.CellFormat(testColWidth, 5, sub, "1", 0, "C", false, 0, "")
 			}
 		}
 	}
 	pdf.Ln(-1)
+
+
+		// --- OverAll Max Min Rows ---
+	pdf.SetFont("Arial", "B", cfg.FontSize)
+	for _, f := range cfg.OverAllMaxMin {
+		if !f.Flag {
+			continue // skip hidden footers
+		}
+		pdf.CellFormat(slWidth+subjectWidth, 5, f.Label, "1", 0, "L", false, 0, "")
+		for _, t := range cfg.TestColumns {
+			visibleCount := 0
+			for _, v := range t.Flag {
+				if v {
+					visibleCount++
+				}
+			}
+			pdf.CellFormat(testColWidth*float64(visibleCount), 5, f.Values[t.Name], "1", 0, "C", false, 0, "")
+		}
+		pdf.Ln(-1)
+	}
 
 	// --- Table Body ---
 	pdf.SetFont("Arial", "", cfg.FontSize)
@@ -419,7 +441,7 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 		for _, t := range cfg.TestColumns {
 			values := s.Tests[t.Name]
 			subIndex := 0
-			for _, v := range t.Visible {
+			for _, v := range t.Flag {
 				if v {
 					pdf.CellFormat(testColWidth, 5, values[subIndex], "1", 0, "C", false, 0, "")
 				}
@@ -432,13 +454,13 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 	// --- Footer Rows ---
 	pdf.SetFont("Arial", "B", cfg.FontSize)
 	for _, f := range cfg.Footer {
-		if !f.Visible {
+		if !f.Flag {
 			continue // skip hidden footers
 		}
 		pdf.CellFormat(slWidth+subjectWidth, 5, f.Label, "1", 0, "L", false, 0, "")
 		for _, t := range cfg.TestColumns {
 			visibleCount := 0
-			for _, v := range t.Visible {
+			for _, v := range t.Flag {
 				if v {
 					visibleCount++
 				}
