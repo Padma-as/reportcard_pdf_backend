@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-
+"strconv"
 "github.com/disintegration/imaging"
 	"github.com/jung-kurt/gofpdf"
 )
@@ -19,10 +19,11 @@ type SubjectData struct {
 	Tests   map[string][]string // key = test name, value = only visible fields
 }
 
-type FooterRow struct {
+type TotalFooterRow struct {
 	Label   string
 	Flag bool
 	Values  map[string]string // test -> value
+	VisibleCols map[string]bool
 }
 
 type ScholasticConfig struct {
@@ -31,7 +32,7 @@ type ScholasticConfig struct {
 	Margin      float64
 	TestColumns []TestColumn
 	Subjects    []SubjectData
-	Footer      []FooterRow
+	totalFooter      []TotalFooterRow
 	ShowMaxPerSubject    bool
 	ShowMinPersubject   bool
 	showGradePerSubject bool
@@ -49,6 +50,52 @@ type ScholasticConfig struct {
 
 
 func main() {
+showTotals:= false
+	var totalFooter TotalFooterRow
+if showTotals {
+	totalFooter = TotalFooterRow{
+		Label: "Total",
+		Values: map[string]string{
+			"UT 1_Max":   "60",
+			"UT 1_Min":   "20",
+			"UT 1_Obt":   "43",
+			"UT 1_Grade": "A",
+			"UT 2_Max":   "60",
+			"UT 2_Min":   "20",
+			"UT 2_Obt":   "54",
+			"UT 2_Grade": "A+",
+			"UT 3_Max":   "60",
+			"UT 3_Min":   "20",
+			"UT 3_Obt":   "42",
+			"UT 3_Grade": "A",
+		},
+		VisibleCols: map[string]bool{
+			"UT 1_Max":   true,
+			"UT 1_Min":   false,
+			"UT 1_Obt":   true,
+			"UT 1_Grade": true,
+			"UT 2_Max":   true,
+			"UT 2_Min":   true,
+			"UT 2_Obt":   true,
+			"UT 2_Grade": true,
+			"UT 3_Max":   true,
+			"UT 3_Min":   true,
+			"UT 3_Obt":   true,
+			"UT 3_Grade": true,
+		},
+	}
+} else {
+	totalFooter = TotalFooterRow{
+		Label: "Total",
+		Values: map[string]string{
+			"UT 1": "50",
+			"UT 2": "54",
+			"UT 3": "45",
+		},
+		Flag: true,
+	}
+}
+
 config := ScholasticConfig{
 	FontSize: 8,
 	Margin:   10,
@@ -100,34 +147,10 @@ config := ScholasticConfig{
 			},
 		},
 	},
-	Footer: []FooterRow{
-		{
-			Label:   "Total",
-			Values:  map[string]string{"UT 1": "50", "UT 2": "54", "UT 3": "45"},
-		
-			Flag: true,
-		},
-	},
-	// 	Footer: []FooterRow{
-	// 	{
-	// 		Label: "Total",
-	// 	Values: map[string]string{
-	// 		"UT 1_Max":   "60",
-	// 		"UT 1_Min":   "20",
-	// 		"UT 1_Obt":   "43",
-	// 		"UT 1_Grade": "A",
-	// 		"UT 2_Max":   "60",
-	// 		"UT 2_Min":   "20",
-	// 		"UT 2_Obt":   "54",
-	// 		"UT 2_Grade": "A+",
-	// 		"UT 3_Max":   "60",
-	// 		"UT 3_Min":   "20",
-	// 		"UT 3_Obt":   "42",
-	// 		"UT 3_Grade": "A",
-	// 	},
-	// 		Flag: true,
-	// 	},
-	// },
+totalFooter: []TotalFooterRow{totalFooter},
+
+
+	
 }
 
 
@@ -415,44 +438,87 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 		pdf.Ln(-1)
 	}
 
-	// --- Footer Rows ---
-	pdf.SetFont("Arial", "B", cfg.FontSize)
-	for _, f := range cfg.Footer {
-		if !f.Flag {
-			continue // skip hidden footers
-		}
-		pdf.CellFormat(slWidth+subjectWidth, 5, f.Label, "1", 0, "L", false, 0, "")
-		for _, t := range cfg.TestColumns {
-			visibleCount := 0
-			for _, v := range t.Flag {
-				if v {
-					visibleCount++
-				}
+// ---total-row---
+footer := generateFooter(cfg)
+pdf.SetFont("Arial", "B", cfg.FontSize)
+pdf.CellFormat(fixedWidth, 5, footer.Label, "1", 0, "L", false, 0, "")
+
+for _, test := range cfg.TestColumns {
+	for _, subCol := range test.SubCols {
+		key := fmt.Sprintf("%s_%s", test.Name, subCol)
+
+		// Check if we should show this column
+		if footer.VisibleCols != nil {
+			if visible, ok := footer.VisibleCols[key]; !ok || !visible {
+				continue
 			}
-			pdf.CellFormat(testColWidth*float64(visibleCount), 5, f.Values[t.Name], "1", 0, "C", false, 0, "")
 		}
-		pdf.Ln(-1)
+
+		value := footer.Values[key]
+		if value == "" && !cfg.ShowTotalsOfMaxMin {
+			value = footer.Values[test.Name] // simple obtained total
+		}
+
+		pdf.CellFormat(testColWidth, 5, value, "1", 0, "C", false, 0, "")
+	}
+}
+pdf.Ln(-1)
+
+}
+
+func generateFooter(cfg ScholasticConfig) TotalFooterRow {
+	row := TotalFooterRow{
+		Label: "Total",
+		Values: make(map[string]string),
+		Flag: true,
 	}
 
-	// --- Render footer row ---
-// pdf.SetFont("Arial", "B", cfg.FontSize)
-// totalFooter := cfg.Footer[0]
-// pdf.CellFormat(30, 6, totalFooter.Label, "1", 0, "L", false, 0, "")
+	if !cfg.ShowTotalsOfMaxMin {
+		// Only total of Obtained per test
+		for _, test := range cfg.TestColumns {
+			totalObt := 0
+			for _, subj := range cfg.Subjects {
+				if scores, ok := subj.Tests[test.Name]; ok {
+					obt, _ := strconv.Atoi(scores[2])
+					totalObt += obt
+				}
+			}
+			row.Values[test.Name] = fmt.Sprintf("%d", totalObt)
+		}
+	} else {
+		// Total Max, Min, Obt, Grade per test
+		row.VisibleCols = make(map[string]bool)
+		for _, test := range cfg.TestColumns {
+			totalMax, totalMin, totalObt := 0, 0, 0
+			var lastGrade string
+			for _, subj := range cfg.Subjects {
+				if scores, ok := subj.Tests[test.Name]; ok {
+					max, _ := strconv.Atoi(scores[0])
+					min, _ := strconv.Atoi(scores[1])
+					obt, _ := strconv.Atoi(scores[2])
+					totalMax += max
+					totalMin += min
+					totalObt += obt
+					lastGrade = scores[3] // take grade from backend
+				}
+			}
+			row.Values[fmt.Sprintf("%s_Max", test.Name)] = fmt.Sprintf("%d", totalMax)
+			row.Values[fmt.Sprintf("%s_Min", test.Name)] = fmt.Sprintf("%d", totalMin)
+			row.Values[fmt.Sprintf("%s_Obt", test.Name)] = fmt.Sprintf("%d", totalObt)
+			row.Values[fmt.Sprintf("%s_Grade", test.Name)] = lastGrade
 
-// for _, test := range cfg.TestColumns {
-// 	for i, subCol := range test.SubCols {
-// 		if len(test.Flag) > i && test.Flag[i] {
-// 			// Match key like "UT 1_Max"
-// 			key := fmt.Sprintf("%s_%s", test.Name, subCol)
-// 			value := totalFooter.Values[key]
-// 			pdf.CellFormat(20, 6, value, "1", 0, "C", false, 0, "")
-// 		}
-// 	}
-// }
-// pdf.Ln(-1)
+			// Set per-column visibility
+			for i, subCol := range test.SubCols {
+				if i < len(test.Flag) {
+					key := fmt.Sprintf("%s_%s", test.Name, subCol)
+					row.VisibleCols[key] = test.Flag[i]
+				}
+			}
+		}
+	}
 
-// }
-
+	return row
+}
 
 func addCoScholasticArea(pdf *gofpdf.Fpdf) {
 	pdf.SetFont("Arial", "B", 8)
