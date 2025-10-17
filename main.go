@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-
+"strings"
 "github.com/disintegration/imaging"
 	"github.com/jung-kurt/gofpdf"
 )
@@ -78,7 +78,7 @@ func main() {
 		ShowGradePerTest:   true,
 		ShowTotalsOfMaxMin: true,
 		ShowOverAllRemarks: true,
-		ShowOverAllConduct: true,
+		ShowOverAllConduct: false,
 	
 	}
 
@@ -493,7 +493,7 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 	}
 	pdf.Ln(-1)
 
-	// otherfooter rows
+	// max _min rows per test
 	pdf.SetFont("Arial", "B", cfg.FontSize)
 	for _, f := range cfg.Header {
 		if !f.Flag {
@@ -578,23 +578,60 @@ if cfg.ShowTotalsOfMaxMin {
 
 // otherfooter rows
 	pdf.SetFont("Arial", "B", cfg.FontSize)
-	for _, f := range cfg.Footer {
-		if !f.Flag {
-			continue // skip hidden footers
-		}
-		pdf.CellFormat(fixedWidth, 5, f.Label, "1", 0, "L", false, 0, "")
+
+
+for _, f := range cfg.Footer {
+	if !f.Flag {
+		continue // skip hidden footers
+	}
+
+	pdf.CellFormat(fixedWidth, 5, f.Label, "1", 0, "L", false, 0, "")
+
+	// --- check if this footer should merge across all tests ---
+	shouldMerge := (cfg.ShowOverAllRemarks && strings.EqualFold(f.Label, "Remarks")) ||
+		(cfg.ShowOverAllConduct && strings.EqualFold(f.Label, "Conduct"))
+
+	if shouldMerge {
+		// Calculate total width for all visible test columns
+		totalVisibleWidth := 0.0
 		for _, t := range cfg.TestColumns {
-			visibleCount := 0
 			for _, v := range t.Flag {
 				if v {
-					visibleCount++
+					totalVisibleWidth += testColWidth
 				}
 			}
-			pdf.CellFormat(testColWidth*float64(visibleCount), 5, f.Values[t.Name], "1", 0, "C", false, 0, "")
 		}
+
+		// Pick value (use UT 1 or first available)
+		value := ""
+		if val, ok := f.Values["UT 1"]; ok {
+			value = val
+		} else if len(f.Values) > 0 {
+			for _, v := range f.Values {
+				value = v
+				break
+			}
+		}
+
+		// Draw one merged cell
+		pdf.CellFormat(totalVisibleWidth, 5, value, "1", 0, "C", false, 0, "")
 		pdf.Ln(-1)
+		continue
 	}
-pdf.Ln(-1)
+
+	// --- normal footer layout: per test ---
+	for _, t := range cfg.TestColumns {
+		visibleCount := 0
+		for _, v := range t.Flag {
+			if v {
+				visibleCount++
+			}
+		}
+		pdf.CellFormat(testColWidth*float64(visibleCount), 5, f.Values[t.Name], "1", 0, "C", false, 0, "")
+	}
+
+	pdf.Ln(-1)
+}
 
 }
 
