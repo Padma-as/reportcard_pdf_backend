@@ -54,55 +54,56 @@ func main() {
 		FontSize:           8,
 		Margin:             10,
 		Title:              "PART I - SCHOLASTIC AREA",
-		ShowMaxPerSubject:  true,
+		ShowMaxPerSubject:  false,
 		ShowMinPersubject:  false,
 		showGradePerSubject: true,
 		ShowRemarksPerTest: true,
 		ShowConductPerTest: true,
 		ShowPercentage:     true,
 		ShowGradePerTest:   true,
-		ShowTotalsOfMaxMin: false,
+		ShowTotalsOfMaxMin: true,
 		ShowOverAllRemarks: true,
 		ShowOverAllConduct: true,
-		TestColumns: []TestColumn{
-			{
-				Name:    "UT 1",
-				SubCols: []string{"Max", "Min", "Obt", "Grade"},
-				Flag:    []bool{true, true, true, true},
-			},
-			{
-				Name:    "UT 2",
-				SubCols: []string{"Max", "Min", "Obt", "Grade"},
-				Flag:    []bool{true, true, true, true},
-			},
-			{
-				Name:    "UT 3",
-				SubCols: []string{"Max", "Min", "Obt", "Grade"},
-				Flag:    []bool{true, true, true, true},
-			},
+	}
+
+		config.TestColumns = []TestColumn{
+		{
+			Name:    "UT 1",
+			SubCols: []string{"Max", "Min", "Obt", "Grade"},
+			Flag:    []bool{config.ShowMaxPerSubject, config.ShowMinPersubject, true, config.showGradePerSubject},
 		},
-		Subjects: []SubjectData{
-			{
-				SlNo:    "1",
-				Subject: "Mathematics",
-				Tests: map[string][]string{
-					"UT 1": {"30", "10", "25", "A"},
-					"UT 2": {"30", "10", "28", "A+"},
-					"UT 3": {"30", "10", "22", "B"},
-				},
-			},
-			{
-				SlNo:    "2",
-				Subject: "Science",
-				Tests: map[string][]string{
-					"UT 1": {"30", "10", "18", "B"},
-					"UT 2": {"30", "10", "26", "A"},
-					"UT 3": {"30", "10", "20", "B"},
-				},
-			},
+		{
+			Name:    "UT 2",
+			SubCols: []string{"Max", "Min", "Obt", "Grade"},
+			Flag:    []bool{config.ShowMaxPerSubject, config.ShowMinPersubject, true, config.showGradePerSubject},
+		},
+		{
+			Name:    "UT 3",
+			SubCols: []string{"Max", "Min", "Obt", "Grade"},
+			Flag:    []bool{config.ShowMaxPerSubject, config.ShowMinPersubject, true, config.showGradePerSubject},
 		},
 	}
 
+		config.Subjects = []SubjectData{
+		{
+			SlNo:    "1",
+			Subject: "Mathematics",
+			Tests: map[string][]string{
+				"UT 1": {"30", "10", "25", "A"},
+				"UT 2": {"30", "10", "28", "A+"},
+				"UT 3": {"30", "10", "22", "B"},
+			},
+		},
+		{
+			SlNo:    "2",
+			Subject: "Science",
+			Tests: map[string][]string{
+				"UT 1": {"30", "10", "18", "B"},
+				"UT 2": {"30", "10", "26", "A"},
+				"UT 3": {"30", "10", "20", "B"},
+			},
+		},
+	}
 	var totalFooter TotalFooterRow
 	if config.ShowTotalsOfMaxMin {
 		totalFooter = TotalFooterRow{
@@ -122,18 +123,18 @@ func main() {
 				"UT 3_Grade": "A",
 			},
 			VisibleCols: map[string]bool{
-				"UT 1_Max":   true,
-				"UT 1_Min":   false,
+				"UT 1_Max":   config.ShowMaxPerSubject,
+				"UT 1_Min":   config.ShowMinPersubject,
 				"UT 1_Obt":   true,
-				"UT 1_Grade": true,
-				"UT 2_Max":   true,
-				"UT 2_Min":   true,
+				"UT 1_Grade": config.ShowGradePerTest,
+				"UT 2_Max":    config.ShowMaxPerSubject,
+				"UT 2_Min":    config.ShowMinPersubject,
 				"UT 2_Obt":   true,
-				"UT 2_Grade": true,
-				"UT 3_Max":   true,
-				"UT 3_Min":   true,
+				"UT 2_Grade": config.ShowGradePerTest,
+				"UT 3_Max":    config.ShowMaxPerSubject,
+				"UT 3_Min":   config.ShowMinPersubject,
 				"UT 3_Obt":   true,
-				"UT 3_Grade": true,
+				"UT 3_Grade": config.ShowGradePerTest,
 			},
 		}
 	} else {
