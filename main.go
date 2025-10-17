@@ -56,7 +56,9 @@ type ScholasticConfig struct {
     ShowTotalsOfMaxMin bool
 
 	ShowOverAllRemarks bool
-	ShowOverAllConduct bool
+	ShowOverAllConduct bool 
+
+	ShowSerialNumber bool
 
 	
 }
@@ -79,7 +81,8 @@ func main() {
 		ShowTotalsOfMaxMin: true,
 		ShowOverAllRemarks: true,
 		ShowOverAllConduct: false,
-	
+		ShowSerialNumber : true,
+
 	}
 
 		config.TestColumns = []TestColumn{
@@ -445,13 +448,15 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 	pdf.CellFormat(0, 6, cfg.Title, "", 1, "L", false, 0, "")
 	pdf.Ln(1)
 
-	slWidth := 8.0
+	slWidth := 6.0
 	subjectWidth := 50.0
 
 	pageWidth, _ := pdf.GetPageSize()
 	effectiveWidth := pageWidth - (2 * cfg.Margin)
-	fixedWidth := slWidth + subjectWidth
-
+	fixedWidth := subjectWidth
+	if cfg.ShowSerialNumber {
+		fixedWidth += slWidth
+	}
 	// count total visible subcolumns
 	totalSubCols := 0
 	for _, t := range cfg.TestColumns {
@@ -466,7 +471,10 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 	testColWidth := testWidth / float64(totalSubCols)
 
 	// --- Header Row 1 ---
-	pdf.CellFormat(slWidth, 10, "Sl", "1", 0, "C", false, 0, "")
+	if cfg.ShowSerialNumber {
+pdf.CellFormat(slWidth, 10, "Sl", "1", 0, "C", false, 0, "")
+	}
+	
 	pdf.CellFormat(subjectWidth, 10, "Subject", "1", 0, "C", false, 0, "")
 
 	for _, t := range cfg.TestColumns {
@@ -481,7 +489,9 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 	pdf.Ln(-1)
 
 	// --- Header Row 2 ---
-	pdf.CellFormat(slWidth, 0, "", "0", 0, "", false, 0, "")
+if cfg.ShowSerialNumber {
+		pdf.CellFormat(slWidth, 0, "", "0", 0, "", false, 0, "")
+	}	
 	pdf.CellFormat(subjectWidth, 0, "", "0", 0, "", false, 0, "")
 
 	for _, t := range cfg.TestColumns {
@@ -499,8 +509,12 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 		if !f.Flag {
 			continue // skip hidden footers
 		}
-		pdf.CellFormat(fixedWidth, 5, f.Label, "1", 0, "L", false, 0, "")
-		for _, t := range cfg.TestColumns {
+
+		if cfg.ShowSerialNumber {
+			pdf.CellFormat(slWidth, 5, "", "1", 0, "L", false, 0, "")
+		}
+		pdf.CellFormat(subjectWidth, 5, f.Label, "1", 0, "L", false, 0, "")
+				for _, t := range cfg.TestColumns {
 			visibleCount := 0
 			for _, v := range t.Flag {
 				if v {
@@ -515,7 +529,9 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 	// --- Table Body ---
 	pdf.SetFont("Arial", "", cfg.FontSize)
 	for _, s := range cfg.Subjects {
-		pdf.CellFormat(slWidth, 5, s.SlNo, "1", 0, "C", false, 0, "")
+		if cfg.ShowSerialNumber {
+			pdf.CellFormat(slWidth, 5, s.SlNo, "1", 0, "C", false, 0, "")
+		}
 		pdf.CellFormat(subjectWidth, 5, s.Subject, "1", 0, "L", false, 0, "")
 
 		for _, t := range cfg.TestColumns {
@@ -537,8 +553,11 @@ if cfg.ShowTotalsOfMaxMin {
 	// ✅ Show detailed totals (Max, Min, Obt, Grade per test)
 	if len(cfg.TotalFooter) > 0 {
 		totalFooter := cfg.TotalFooter[0]
-
-		pdf.CellFormat(slWidth+subjectWidth, 5, totalFooter.Label, "1", 0, "L", false, 0, "")
+fixedWidth := subjectWidth
+			if cfg.ShowSerialNumber {
+				fixedWidth += slWidth
+			}
+		pdf.CellFormat(fixedWidth, 5, totalFooter.Label, "1", 0, "L", false, 0, "")
 
 		for _, test := range cfg.TestColumns {
 			for i, subCol := range test.SubCols {
@@ -558,8 +577,10 @@ if cfg.ShowTotalsOfMaxMin {
 		if !f.Flag {
 			continue // skip hidden footer rows
 		}
-
-		pdf.CellFormat(slWidth+subjectWidth, 5, f.Label, "1", 0, "L", false, 0, "")
+if cfg.ShowSerialNumber {
+				fixedWidth += slWidth
+			}
+		pdf.CellFormat(fixedWidth, 5, f.Label, "1", 0, "L", false, 0, "")
 
 		for _, t := range cfg.TestColumns {
 			visibleCount := 0
