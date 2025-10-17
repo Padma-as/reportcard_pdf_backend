@@ -26,13 +26,26 @@ type TotalFooterRow struct {
 	VisibleCols map[string]bool
 }
 
+type FooterRow struct {
+	Label   string
+	Flag bool
+	Values  map[string]string // test -> value
+
+}
+
+
 type ScholasticConfig struct {
 	Title       string
 	FontSize    float64
 	Margin      float64
 	TestColumns []TestColumn
 	Subjects    []SubjectData
-	Footer      []TotalFooterRow
+	TotalFooter      []TotalFooterRow
+	Header []FooterRow
+	Footer []FooterRow
+	ShowMaxPerTest bool
+	ShowMinPerTest bool
+
 	ShowMaxPerSubject    bool
 	ShowMinPersubject   bool
 	showGradePerSubject bool
@@ -54,7 +67,9 @@ func main() {
 		FontSize:           8,
 		Margin:             10,
 		Title:              "PART I - SCHOLASTIC AREA",
-		ShowMaxPerSubject:  false,
+		ShowMaxPerTest : false,
+		ShowMinPerTest: true,
+		ShowMaxPerSubject:  true,
 		ShowMinPersubject:  false,
 		showGradePerSubject: true,
 		ShowRemarksPerTest: true,
@@ -64,6 +79,7 @@ func main() {
 		ShowTotalsOfMaxMin: true,
 		ShowOverAllRemarks: true,
 		ShowOverAllConduct: true,
+	
 	}
 
 		config.TestColumns = []TestColumn{
@@ -149,8 +165,70 @@ func main() {
 		}
 	}
 
-	config.Footer = []TotalFooterRow{totalFooter}
+	config.TotalFooter = []TotalFooterRow{totalFooter}
 
+	config.Header = []FooterRow{
+
+	{
+		Label: "Max",
+		Values: map[string]string{
+			"UT 1": "60",
+			"UT 2": "60",
+			"UT 3": "60",
+		},
+		Flag: config.ShowMaxPerTest,
+	},
+	{
+		Label: "Min",
+		Values: map[string]string{
+			"UT 1": "10",
+			"UT 2": "12",
+			"UT 3": "15",
+		},
+		Flag: config.ShowMinPerTest,
+	},
+
+}
+config.Footer = []FooterRow{
+
+
+	{
+		Label: "Percentage",
+		Values: map[string]string{
+			"UT 1": "83%", 
+			"UT 2": "90%",
+			"UT 3": "75%",
+		},
+		Flag: true,
+	},
+	{
+		Label: "Grade",
+		Values: map[string]string{
+			"UT 1": "A",
+			"UT 2": "A+",
+			"UT 3": "A",
+		},
+		Flag: true,
+	},
+	{
+		Label: "Remarks",
+		Values: map[string]string{
+			"UT 1": "Good",
+			"UT 2": "Very Good",
+			"UT 3": "Good",
+		},
+		Flag: true,
+	},
+		{
+		Label: "Conduct",
+		Values: map[string]string{
+			"UT 1": "Good",
+			"UT 2": "Very Good",
+			"UT 3": "Good",
+		},
+		Flag: true,
+	},
+}
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.AddPage()
 	pdf.SetFont("Arial", "", 12)
@@ -415,6 +493,25 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 	}
 	pdf.Ln(-1)
 
+	// otherfooter rows
+	pdf.SetFont("Arial", "B", cfg.FontSize)
+	for _, f := range cfg.Header {
+		if !f.Flag {
+			continue // skip hidden footers
+		}
+		pdf.CellFormat(fixedWidth, 5, f.Label, "1", 0, "L", false, 0, "")
+		for _, t := range cfg.TestColumns {
+			visibleCount := 0
+			for _, v := range t.Flag {
+				if v {
+					visibleCount++
+				}
+			}
+			pdf.CellFormat(testColWidth*float64(visibleCount), 5, f.Values[t.Name], "1", 0, "C", false, 0, "")
+		}
+		pdf.Ln(-1)
+	}
+
 	// --- Table Body ---
 	pdf.SetFont("Arial", "", cfg.FontSize)
 	for _, s := range cfg.Subjects {
@@ -434,12 +531,12 @@ func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 		pdf.Ln(-1)
 	}
 
-	// --- Footer Rows ---
+	// ---totalFooter Rows ---
 	pdf.SetFont("Arial", "B", cfg.FontSize)
 if cfg.ShowTotalsOfMaxMin {
 	// ✅ Show detailed totals (Max, Min, Obt, Grade per test)
-	if len(cfg.Footer) > 0 {
-		totalFooter := cfg.Footer[0]
+	if len(cfg.TotalFooter) > 0 {
+		totalFooter := cfg.TotalFooter[0]
 
 		pdf.CellFormat(slWidth+subjectWidth, 5, totalFooter.Label, "1", 0, "L", false, 0, "")
 
@@ -457,7 +554,7 @@ if cfg.ShowTotalsOfMaxMin {
 
 } else {
 	// ✅ Show simple footer rows (Obtained total only)
-	for _, f := range cfg.Footer {
+	for _, f := range cfg.TotalFooter {
 		if !f.Flag {
 			continue // skip hidden footer rows
 		}
@@ -478,6 +575,25 @@ if cfg.ShowTotalsOfMaxMin {
 		pdf.Ln(-1)
 	}
 }
+
+// otherfooter rows
+	pdf.SetFont("Arial", "B", cfg.FontSize)
+	for _, f := range cfg.Footer {
+		if !f.Flag {
+			continue // skip hidden footers
+		}
+		pdf.CellFormat(fixedWidth, 5, f.Label, "1", 0, "L", false, 0, "")
+		for _, t := range cfg.TestColumns {
+			visibleCount := 0
+			for _, v := range t.Flag {
+				if v {
+					visibleCount++
+				}
+			}
+			pdf.CellFormat(testColWidth*float64(visibleCount), 5, f.Values[t.Name], "1", 0, "C", false, 0, "")
+		}
+		pdf.Ln(-1)
+	}
 pdf.Ln(-1)
 
 }
