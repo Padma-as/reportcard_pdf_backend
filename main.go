@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 "strings"
+"strconv"
+"math"
 "github.com/disintegration/imaging"
 	"github.com/jung-kurt/gofpdf"
 )
@@ -63,7 +65,25 @@ type ScholasticConfig struct {
 	
 }
 
+type StudentDetailsConfig struct {
+    label    string
+    value      string 
+    flag bool
+}
 
+type StudentInfoConfig struct {
+    Details    []StudentDetailsConfig
+
+    Columns    int    
+    PhotoSide  string 
+    StudentProfilePath  string 
+    FontSize   float64
+    ShowPhoto  bool   
+    StudentPhotoX   float64
+    StudentPhotoY  float64
+}
+
+type StudentValues map[string]string
 func main() {
 	config := ScholasticConfig{
 		FontSize:           8,
@@ -241,9 +261,80 @@ config.Footer = []FooterRow{
 	pdf.SetAutoPageBreak(true, 10)
 
 	decoratePage(pdf)
-	addHeader(pdf)
-	addTitle(pdf)
-	addStudentInfo(pdf)
+	
+	instDetails := InstDetailsConfig{
+    // --- Image Flags and Content ---
+    PrintPhoto1:     false,
+    PrintPhoto2:     false,
+    PrintInstLogo:   false, // Triggers Case 2 (L: Photo1, R: InstLogo, Center: Text)
+    
+    CustomerName:    "My-Eduate",
+    InstName:        "User Group of Institutions",
+    InstAddress:     "Anjanadri School, Sample Address, 560001",
+    InstEmail:       "anjanadri@myeduate.com",
+    InstWebsite:     "www.myeduate.com",
+    
+    // --- Text Enable Flags (Set all to true to see all text lines) ---
+    EnableHeader:    true,
+    PrintCustName:   true,
+    PrintInstName:   true,
+    EnableAffiliated: true,
+    PrintInstAddress: true,
+    PrintInstWebsite: true,
+    PrintInstEmail:   true,
+    
+    // --- Font Sizes (Using default values from the previous response) ---
+    HeaderFontSize:       8.0,
+    CustomerNameFontSize: 14.0,
+    InstNameFontSize:     10.0,
+    CaptionFontSize:      7.0, // Used for Affiliated To
+    AddressFontSize:      7.0,
+    EmailFontSize:        7.0,
+    WebsiteFontSize:      7.0,
+
+	HeaderFontColor :"#00000",
+	CustomerNameFontColor:"#00000",
+
+    // Placeholder content for the header and affiliated lines
+    HeaderContent:    "Progress Report",
+    AffiliatedContent: "Affiliated to: Anjanadri School (Placeholder)",
+}
+detailConfig := []StudentDetailsConfig{
+        
+        {label: "Student Name", value: "NAME", flag: true},
+        {label: "Adm No.", value: "ADM_NO", flag: true},
+        {label: "Class", value: "CLASS", flag: false}, // This field will be skipped
+        {label: "Father's Name", value: "FATHER_NAME", flag: true},
+        {label: "Mother's Name", value: "MOTHER_NAME", flag: true}, // This field will be skipped
+        {label: "Academic Year", value: "ACADEMIC_YEAR", flag: true}, // This field will be skipped
+        {label: "Date of Birth", value: "DOB", flag: true},
+    }
+reportConfig := StudentInfoConfig{
+	 Details: detailConfig,
+        Columns:    2,
+        PhotoSide:  "left",
+        StudentProfilePath:  "./assets/Arcadis_Logo.png",
+        FontSize:   10.0,
+        ShowPhoto:  true, 
+		StudentPhotoX : 25.0,
+		StudentPhotoY: 25.0 ,
+    }
+	studentAPIValues := StudentValues{
+        "S_NO": "01",
+        "NAME": "Sahana M",
+        "ADM_NO": "AS-51",
+        "CLASS": "1 & A",
+        "FATHER_NAME": "MANJUNATHA",
+        "MOTHER_NAME": "LAKSHMIDEVI",
+        "ACADEMIC_YEAR": "2025-2026",
+        "ATTENDANCE": "95%",
+        "DOB": "02-08-2005",
+    }
+// Correct function call using the InstDetailsConfig struc
+    AddHeader(pdf, instDetails)
+	// addTitle(pdf)
+
+    AddStudentInfo(pdf, reportConfig,studentAPIValues)
 	addScholasticArea(pdf, config)
 	addCoScholasticArea(pdf)
 	addScholasticGraph(pdf)
@@ -310,80 +401,262 @@ func decoratePage(pdf *gofpdf.Fpdf) {
 	pdf.SetDrawColor(50, 50, 150)
 	pdf.Rect(margin, margin, pageWidth-2*margin, pageHeight-2*margin, "D")
 }
-func addHeader(pdf *gofpdf.Fpdf) {
-	// Define image paths
-	logoPath := "./assets/Arcadis_Logo.png"
-	photo1Path := "./assets/Arcadis_Logo.png"
-	photo2Path := "./assets/Arcadis_Logo.png"
+// Helper function to calculate a safe line height in mm based on font size (pt)
+func getSafeLineHeight(pdf *gofpdf.Fpdf, fontSize float64) float64 {
+    // Convert points to document units (mm) and add a small margin (e.g., 20%)
+    return pdf.PointConvert(fontSize) * 1.5
+}
 
-	// Page width (A4 = 210mm)
-	pageWidth, _ := pdf.GetPageSize()
-	margin := 10.0
-	imgWidth := 10.0
 
-	// Y-position for header images
-	y := pdf.GetY()
 
-	// Left photo
-	pdf.ImageOptions(
-		photo1Path,
-		margin,
-		y,
-		imgWidth,
-		0,
-		false,
-		gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true},
-		0,
-		"",
-	)
+// --- Define the Configuration Struct (Needs to be defined outside the function) ---
+type InstDetailsConfig struct {
+    // Text Enable Flags
+    EnableHeader     bool
+    PrintCustName    bool
+    PrintInstName    bool
+    EnableAffiliated bool
+    PrintInstAddress bool
+    PrintInstWebsite bool
+    PrintInstEmail   bool
+    
+    // Font Sizes (The required configuration variables)
+    HeaderFontSize       float64
+    CustomerNameFontSize float64
+    InstNameFontSize     float64
+    CaptionFontSize      float64 
+    AddressFontSize      float64
+    EmailFontSize        float64
+    WebsiteFontSize      float64
 
-	// Right photo
-	pdf.ImageOptions(
-		photo2Path,
-		pageWidth-margin-imgWidth,
-		y,
-		imgWidth,
-		0,
-		false,
-		gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true},
-		0,
-		"",
-	)
+    // Image/Content Parameters
+    PrintPhoto1      bool
+    PrintPhoto2      bool
+    PrintInstLogo    bool
+    InstName         string
+    CustomerName     string
+    InstAddress      string
+    InstEmail        string
+    InstWebsite      string
+    HeaderContent    string
+    AffiliatedContent string
 
-	// Center logo
-	centerX := (pageWidth / 2) - (imgWidth / 2)
-	pdf.ImageOptions(
-		logoPath,
-		centerX,
-		y,
-		imgWidth,
-		0,
-		false,
-		gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true},
-		0,
-		"",
-	)
+	HeaderFontColor string
+	CustomerNameFontColor string
+}
+// ----------------------------------------------------------------------------
 
-	// Move below the images
-	pdf.SetY(y + imgWidth + 5)
 
-	// Text content
-	pdf.SetFont("Arial", "B", 14)
-	pdf.CellFormat(0, 8, "My-Eduate", "", 1, "C", false, 0, "")
-	pdf.SetFont("Arial", "B", 10)
-	pdf.CellFormat(0, 6, "User Group of Institutions", "", 1, "C", false, 0, "")
-	pdf.SetFont("Arial", "", 6)
-	pdf.CellFormat(0, 6, "Anjanadri School", "", 1, "C", false, 0, "")
-	pdf.CellFormat(0, 6, "anjanadri@myeduate.com", "", 1, "C", false, 0, "")
-	pdf.Ln(1)
-	// Draw bottom border (horizontal line)
-	x1 := margin
-	x2 := pageWidth - margin
-	yLine := pdf.GetY() // current Y after header
-	pdf.SetDrawColor(0, 0, 0) // black line
-	pdf.SetLineWidth(0.2)
-	pdf.Line(x1, yLine, x2, yLine)
-	pdf.Ln(2) // small gap after line for next section
+func AddHeader(pdf *gofpdf.Fpdf, config InstDetailsConfig) {
+    // Define image paths - NOTE: Using placeholders
+    logoPath := "./assets/Arcadis_Logo.png"
+    photo1Path := "./assets/Arcadis_Logo.png" 
+    photo2Path := "./assets/Arcadis_Logo.png" 
+
+    // --- Setup Common Variables ---
+    pageWidth, _ := pdf.GetPageSize()
+    margin := 10.0
+    imgWidth := 15.0 
+    imgHeight := 15.0
+    yStart := pdf.GetY()
+    imgOpt := gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}
+
+    // Positions
+    posLeft := margin
+    posRight := pageWidth - margin - imgWidth
+    centerX := (pageWidth / 2) - (imgWidth / 2)
+
+    // Count enabled images
+    enabledCount := 0
+    if config.PrintPhoto1 { enabledCount++ }
+    if config.PrintPhoto2 { enabledCount++ }
+    if config.PrintInstLogo { enabledCount++ }
+
+    // --- Layout Logic using switch statement (Image Placement) ---
+
+    switch enabledCount {
+    case 1:
+        // Case 1: ONE image (Image Top Center)
+        currentY := yStart
+        if config.PrintPhoto1 {
+            pdf.ImageOptions(photo1Path, centerX, currentY, imgWidth, imgHeight, false, imgOpt, 0, "")
+        } else if config.PrintPhoto2 {
+            pdf.ImageOptions(photo2Path, centerX, currentY, imgWidth, imgHeight, false, imgOpt, 0, "")
+        } else if config.PrintInstLogo {
+            pdf.ImageOptions(logoPath, centerX, currentY, imgWidth, imgHeight, false, imgOpt, 0, "")
+        }
+        pdf.SetY(currentY + imgHeight + 5)
+
+    case 2:
+        // Case 2: TWO images (L, R, with Center Text Block)
+        currentY := yStart
+
+        // 1. Image Slot 1 (Left)
+        if config.PrintPhoto1 {
+            pdf.ImageOptions(photo1Path, posLeft, currentY, imgWidth, imgHeight, false, imgOpt, 0, "")
+        } else if config.PrintInstLogo && config.PrintPhoto2 { 
+            pdf.ImageOptions(logoPath, posLeft, currentY, imgWidth, imgHeight, false, imgOpt, 0, "")
+        }
+
+        // 2. Image Slot 2 (Right)
+        if config.PrintPhoto2 {
+            pdf.ImageOptions(photo2Path, posRight, currentY, imgWidth, imgHeight, false, imgOpt, 0, "")
+        } else if config.PrintInstLogo && config.PrintPhoto1 { 
+            pdf.ImageOptions(logoPath, posRight, currentY, imgWidth, imgHeight, false, imgOpt, 0, "")
+        }
+        
+        // --- Center Text Block in the Row (Conditional and Dynamic Font Size) ---
+        
+        textCellWidth := pageWidth - (2 * (margin + imgWidth)) - 10
+        if textCellWidth < 50.0 { textCellWidth = 50.0 }
+        
+        textCenterX := (pageWidth / 2) - (textCellWidth / 2)
+        textBlockY := currentY
+
+        // 1. Header (e.g., PrintHeader)
+if config.EnableHeader {
+	textBlockY = renderCenteredText(pdf, config.HeaderContent, config.HeaderFontSize, "B", config.HeaderFontColor, textCellWidth, textBlockY, true)
+}
+
+if config.PrintCustName {
+	textBlockY = renderCenteredText(pdf, config.CustomerName, config.CustomerNameFontSize, "B", config.CustomerNameFontColor, textCellWidth, textBlockY, true)
+}
+
+        // 3. Institution Name 
+        if config.PrintInstName {
+            lineHeight := getSafeLineHeight(pdf, config.InstNameFontSize)
+            pdf.SetFont("Arial", "B", config.InstNameFontSize)
+            pdf.SetXY(textCenterX, textBlockY)
+            pdf.CellFormat(textCellWidth, lineHeight, config.InstName, "", 0, "C", false, 0, "")
+            textBlockY += lineHeight
+        }
+
+        // 4. Affiliated To 
+        if config.EnableAffiliated {
+            lineHeight := getSafeLineHeight(pdf, config.CaptionFontSize)
+            pdf.SetFont("Arial", "", config.CaptionFontSize)
+            pdf.SetXY(textCenterX, textBlockY)
+            pdf.CellFormat(textCellWidth, lineHeight, config.AffiliatedContent, "", 0, "C", false, 0, "")
+            textBlockY += lineHeight
+        }
+
+        // 5. Address 
+        if config.PrintInstAddress {
+            lineHeight := getSafeLineHeight(pdf, config.AddressFontSize)
+            pdf.SetFont("Arial", "", config.AddressFontSize)
+            pdf.SetXY(textCenterX, textBlockY)
+            pdf.CellFormat(textCellWidth, lineHeight, config.InstAddress, "", 0, "C", false, 0, "")
+            textBlockY += lineHeight
+        }
+
+        // 6. Contact Info (Website/Email) - Combined on one line for tight row layout
+        // contactLine := ""
+        // if config.PrintInstWebsite && config.InstWebsite != "" {
+        //     contactLine += config.InstWebsite
+        // }
+        // if config.PrintInstEmail && config.InstEmail != "" {
+        //     if contactLine != "" { contactLine += " | " }
+        //     contactLine += config.InstEmail
+        // }
+
+        // if contactLine != "" {
+        //     // Use the largest font size of the two for the combined line, but Email or Website size is generally small.
+        //     fontSize := config.WebsiteFontSize
+        //     if config.EmailFontSize > fontSize { fontSize = config.EmailFontSize }
+            
+        //     lineHeight := getSafeLineHeight(pdf, fontSize)
+        //     pdf.SetFont("Arial", "", fontSize)
+        //     pdf.SetXY(textCenterX, textBlockY)
+        //     pdf.CellFormat(textCellWidth, lineHeight, contactLine, "", 0, "C", false, 0, "")
+        //     textBlockY += lineHeight
+        // }
+          if config.PrintInstEmail {
+            lineHeight := getSafeLineHeight(pdf, config.EmailFontSize)
+            pdf.SetFont("Arial", "", config.EmailFontSize)
+            pdf.SetXY(textCenterX, textBlockY)
+            pdf.CellFormat(textCellWidth, lineHeight, config.InstEmail, "", 0, "C", false, 0, "")
+            textBlockY += lineHeight
+        }
+		   if config.PrintInstWebsite {
+            lineHeight := getSafeLineHeight(pdf, config.EmailFontSize)
+            pdf.SetFont("Arial", "", config.EmailFontSize)
+            pdf.SetXY(textCenterX, textBlockY)
+            pdf.CellFormat(textCellWidth, lineHeight, config.InstWebsite, "", 0, "C", false, 0, "")
+            textBlockY += lineHeight
+        }
+        // Final Y position adjustment
+        maxRowHeight := imgHeight + 5.0
+        textBlockHeight := textBlockY - yStart + 5.0
+        if textBlockHeight > maxRowHeight { maxRowHeight = textBlockHeight }
+        pdf.SetY(yStart + maxRowHeight)
+
+    case 3:
+        // Case 3: ALL THREE images (L, C, R Images Top)
+        currentY := yStart
+        
+        pdf.ImageOptions(photo1Path, posLeft, currentY, imgWidth, imgHeight, false, imgOpt, 0, "")
+        pdf.ImageOptions(logoPath, centerX, currentY, imgWidth, imgHeight, false, imgOpt, 0, "") 
+        pdf.ImageOptions(photo2Path, posRight, currentY, imgWidth, imgHeight, false, imgOpt, 0, "")
+        
+        pdf.SetY(currentY + imgHeight + 5)
+    }
+
+    // --- Text Content Block (Common for Cases 1 and 3 - Stacked) ---
+    if enabledCount == 0||  enabledCount == 1 || enabledCount == 3 {
+        
+ if config.EnableHeader {
+	renderCenteredText(pdf, config.HeaderContent, config.HeaderFontSize, "B", config.HeaderFontColor, 0, 0, false)
+} 
+
+if config.PrintCustName {
+	renderCenteredText(pdf, config.CustomerName, config.CustomerNameFontSize, "B", config.CustomerNameFontColor, 0, 0, false)
+}
+        // 3. Institution Name 
+        if config.PrintInstName {
+            lineHeight := getSafeLineHeight(pdf, config.InstNameFontSize)
+            pdf.SetFont("Arial", "B", config.InstNameFontSize)
+            pdf.CellFormat(0, lineHeight, config.InstName, "", 1, "C", false, 0, "")
+        }
+
+        // 4. Affiliated To/Small Text
+        if config.EnableAffiliated {
+            lineHeight := getSafeLineHeight(pdf, config.CaptionFontSize)
+            pdf.SetFont("Arial", "", config.CaptionFontSize)
+            pdf.CellFormat(0, lineHeight, config.AffiliatedContent, "", 1, "C", false, 0, "")
+        }
+
+        // 5. Address
+        if config.PrintInstAddress {
+            lineHeight := getSafeLineHeight(pdf, config.AddressFontSize)
+            pdf.SetFont("Arial", "", config.AddressFontSize)
+            pdf.CellFormat(0, lineHeight, config.InstAddress, "", 1, "C", false, 0, "")
+        }
+
+        // 6. Website
+        if config.PrintInstWebsite && config.InstWebsite != "" {
+            lineHeight := getSafeLineHeight(pdf, config.WebsiteFontSize)
+            pdf.SetFont("Arial", "", config.WebsiteFontSize)
+            pdf.CellFormat(0, lineHeight, "Website: " + config.InstWebsite, "", 1, "C", false, 0, "")
+        }
+
+        // 7. Email
+        if config.PrintInstEmail && config.InstEmail != "" {
+            lineHeight := getSafeLineHeight(pdf, config.EmailFontSize)
+            pdf.SetFont("Arial", "", config.EmailFontSize)
+            pdf.CellFormat(0, lineHeight, "Email: " + config.InstEmail, "", 1, "C", false, 0, "")
+        }
+        
+        pdf.Ln(1)
+    }
+
+    // --- Draw Bottom Border ---
+    x1 := margin
+    x2 := pageWidth - margin
+    yLine := pdf.GetY()
+    pdf.SetDrawColor(0, 0, 0)
+    pdf.SetLineWidth(0.2)
+    pdf.Line(x1, yLine, x2, yLine)
+    pdf.Ln(2) 
 }
 
 func addTitle(pdf *gofpdf.Fpdf) {
@@ -397,51 +670,155 @@ func addTitle(pdf *gofpdf.Fpdf) {
 	pdf.Ln(1)
 
 }
-func addStudentInfo(pdf *gofpdf.Fpdf) {
-	pdf.SetFont("Arial", "", 8)
+func AddStudentInfo(pdf *gofpdf.Fpdf, config StudentInfoConfig, values StudentValues) {
+    
+    pdf.SetFont("Arial", "", config.FontSize)
 
-	// Left column data (Label, Value)
-	leftColumn := [][]string{
-		{"Student Name", "AMRUTHAVARSHINI M"},
-		{"Adm No.", "AS-51"},
-		{"Father's / Guardian's Name", "MANJUNATHA"},
-		{"Mother's Name", "LAKSHMIDEVI"},
-	}
+    cellHeight := getSafeLineHeight(pdf,config.FontSize)
+    margin := 10.0
+    pageWidth, _ := pdf.GetPageSize()
+    
+    imgW := config.StudentPhotoX
+    imgH := config.StudentPhotoY
+    photoMargin := 5.0
+    
+    // --- Data Filtering and Consolidation (Key Change) ---
+    
+    var printableDetails []struct {
+        Label string
+        Value string
+    }
+    
+    // 1. Iterate over the configured details
+    for _, detailConfig := range config.Details {
+     
 
-	// Right column data (Label, Value)
-	rightColumn := [][]string{
-		{"Class", "1 & A"},
-		{"Academic Year", "2025-2026"},
-		{"Attendance", ""},
-		{"Date of Birth", "02-08-2005"},
-	}
+        // 2. Check the Required flag
+        if detailConfig.flag {
+            // 3. Fetch the dynamic value using the Key
+            value := values[detailConfig.value]
+            
+            // Append the consolidated data to the printable list
+            printableDetails = append(printableDetails, struct {
+                Label string
+                Value string
+            }{
+                Label: detailConfig.label,
+                Value: value,
+            })
+        }
+    }
+    
+    // --- Dynamic Width Calculation (Using printableDetails) ---
+    
+    colonWidth := pdf.GetStringWidth(":") 
 
-	cellHeight := 6.0
-	margin := 10.0
-	pageWidth, _ := pdf.GetPageSize()
-	columnWidth := (pageWidth - 2*margin) / 2
-	gap := 20.0
+    var maxLabelWidth float64
+    for _, detail := range printableDetails { 
+        width := pdf.GetStringWidth(detail.Label)
+        if width > maxLabelWidth {
+            maxLabelWidth = width
+        }
+    }
+    labelWidth := maxLabelWidth + 1.0 
+    
+    // --- Photo Handling and Layout Setup (Logic remains the same) ---
+    
+    currentY := pdf.GetY()
+    detailsXStart := margin
+    detailsWidth := pageWidth - 2*margin
+    
+    if config.ShowPhoto && config.StudentProfilePath != "" && imgW > 0 && imgH > 0 {
+        // ... (Photo logic uses imgW, imgH, photoMargin) ...
+        detailsWidth -= (imgW + photoMargin) 
 
-	labelWidth := 45.0  // width before colon
-	colonWidth := 3.0   // width for the colon itself
+        var photoX, photoY float64
+        
+        if config.Columns == 1 && config.PhotoSide == "center" {
+            photoX = (pageWidth - imgW) / 2
+            photoY = currentY
+            currentY += imgH + photoMargin 
+            pdf.SetY(currentY) 
+        } else if config.PhotoSide == "left" {
+            photoX = margin
+            photoY = currentY
+            detailsXStart += imgW + photoMargin
+        } else if config.PhotoSide == "right" {
+            photoX = pageWidth - margin - imgW
+            photoY = currentY
+        }
 
-	for i := 0; i < len(leftColumn); i++ {
-		// ---- LEFT COLUMN ----
-		pdf.SetX(margin)
-		pdf.CellFormat(labelWidth, cellHeight, leftColumn[i][0], "", 0, "L", false, 0, "")
-		pdf.CellFormat(colonWidth, cellHeight, ":", "", 0, "C", false, 0, "")
-		pdf.CellFormat(columnWidth-labelWidth-colonWidth-gap, cellHeight, leftColumn[i][1], "", 0, "L", false, 0, "")
+        pdf.Image(config.StudentProfilePath, photoX, photoY, imgW, imgH, false, "", 0, "")
 
-		// ---- RIGHT COLUMN ----
-		pdf.SetX(margin + columnWidth)
-		pdf.CellFormat(labelWidth, cellHeight, rightColumn[i][0], "", 0, "L", false, 0, "")
-		pdf.CellFormat(colonWidth, cellHeight, ":", "", 0, "C", false, 0, "")
-		pdf.CellFormat(columnWidth-labelWidth-colonWidth, cellHeight, rightColumn[i][1], "", 1, "L", false, 0, "")
-	}
+        if pdf.Error() != nil {
+            // ... error handling ...
+            pdf.SetError(nil) 
+        }
+        
+        if config.Columns == 2 {
+            pdf.SetY(currentY) 
+        }
+    } else {
+        pdf.SetY(currentY)
+    }
 
-	pdf.Ln(1)
+    // --- Details Printing (Using printableDetails) ---
+    
+    dataCount := len(printableDetails) 
+
+    if config.Columns == 2 {
+        // TWO-COLUMN LAYOUT
+        
+        columnWidth := detailsWidth / 2
+        valueWidth := columnWidth - labelWidth - colonWidth
+        if valueWidth < 0 { valueWidth = 0 }
+        
+        midpoint := int(math.Ceil(float64(dataCount) / 2.0))
+        maxRows := int(math.Max(float64(midpoint), float64(dataCount - midpoint)))
+
+        for i := 0; i < maxRows; i++ {
+            
+            // Left Column
+            pdf.SetX(detailsXStart)
+            jL := i 
+            if jL < dataCount { 
+                detail := printableDetails[jL]
+                pdf.CellFormat(labelWidth, cellHeight, detail.Label, "", 0, "L", false, 0, "")
+                pdf.CellFormat(colonWidth, cellHeight, ":", "", 0, "C", false, 0, "")
+                pdf.CellFormat(valueWidth, cellHeight, detail.Value, "", 0, "L", false, 0, "")
+            } else {
+                pdf.CellFormat(columnWidth, cellHeight, "", "", 0, "L", false, 0, "")
+            }
+
+            // Right Column
+            pdf.SetX(detailsXStart + columnWidth) 
+            jR := midpoint + i
+            if jR < dataCount { 
+                detail := printableDetails[jR]
+                pdf.CellFormat(labelWidth, cellHeight, detail.Label, "", 0, "L", false, 0, "")
+                pdf.CellFormat(colonWidth, cellHeight, ":", "", 0, "C", false, 0, "")
+                pdf.CellFormat(valueWidth, cellHeight, detail.Value, "", 1, "L", false, 0, "")
+            } else {
+                pdf.Ln(cellHeight) 
+            }
+        }
+
+    } else {
+        // SINGLE-COLUMN LAYOUT
+        
+        valueWidth := detailsWidth - labelWidth - colonWidth
+        if valueWidth < 0 { valueWidth = 0 }
+        
+        for _, detail := range printableDetails {
+            pdf.SetX(detailsXStart)
+            pdf.CellFormat(labelWidth, cellHeight, detail.Label, "", 0, "L", false, 0, "")
+            pdf.CellFormat(colonWidth, cellHeight, ":", "", 0, "C", false, 0, "")
+            pdf.CellFormat(valueWidth, cellHeight, detail.Value, "", 1, "L", false, 0, "")
+        }
+    }
+    
+    pdf.Ln(5)
 }
-
 
 func addScholasticArea(pdf *gofpdf.Fpdf, cfg ScholasticConfig) {
 	pdf.SetFont("Arial", "B", cfg.FontSize)
@@ -917,4 +1294,58 @@ func addFooter(pdf *gofpdf.Fpdf) {
 
 
 
+
+
+
+func HexToRGB(hex string) (int, int, int, error) {
+	// Remove '#' if present
+	hex = strings.TrimPrefix(hex, "#")
+
+	// Ensure it has exactly 6 characters
+	if len(hex) != 6 {
+		return 0, 0, 0, fmt.Errorf("invalid hex color: %s", hex)
+	}
+
+	// Parse red, green, blue values
+	r, err := strconv.ParseInt(hex[0:2], 16, 0)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	g, err := strconv.ParseInt(hex[2:4], 16, 0)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	b, err := strconv.ParseInt(hex[4:6], 16, 0)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	return int(r), int(g), int(b), nil
+}
+
+func renderCenteredText(pdf *gofpdf.Fpdf, text string, fontSize float64, fontStyle string, hexColor string, textCellWidth float64, textY float64, useXY bool) float64 {
+    // ... (unchanged setup code) ...
+    lineHeight := getSafeLineHeight(pdf, fontSize)
+
+    // ... (unchanged color setup) ...
+
+    // --- Position and print ---
+    if useXY {
+        // ... (XY layout - remains unchanged) ...
+		pageWidth, _ := pdf.GetPageSize()
+        textCenterX := (pageWidth - textCellWidth) / 2
+        pdf.SetXY(textCenterX, textY)
+        pdf.CellFormat(textCellWidth, lineHeight, text, "", 0, "C", false, 0, "")
+        textY += lineHeight
+    } else {
+        // flow layout (used for enabledCount = 0, 1, 3)
+        // CRITICAL FIX: Use MultiCell for wrapped text, and width 0 ensures full width use.
+        pdf.MultiCell(0, lineHeight, text, "", "C", false) 
+        
+        // Remove the manual Y-advance if the value is discarded:
+        // textY += lineHeight // <--- REMOVE THIS LINE
+    }
+
+    return textY
+}
 
