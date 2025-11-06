@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Report Card</title>
+  <style>
+    @page { size: A4; margin: 15mm; }
+    body { font-family: "Josefin Sans", Arial, sans-serif; font-size: 12px; }
+    .header { text-align: center; margin-bottom: 6mm; }
+    .school { font-size: 18px; font-weight: bold; }
+    .meta { margin-top: 4mm; display:flex; justify-content:space-between; }
+    table { width:100%; border-collapse: collapse; margin-top:6mm; }
+    table, th, td { border: 1px solid #333; }
+    th, td { padding: 6px; text-align:left; }
+    .footer { margin-top: 8mm; display:flex; justify-content:space-between; }
+    .small { font-size: 10px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="school">My-Eduate — Vidyabharathi</div>
+    <div class="small">Near Indiranagar metrostation, Bengaluru</div>
+    <hr/>
+  </div>
+
+  <div class="meta">
+    <div>
+      <div><strong>Student Name</strong> : {{ .StudentName }}</div>
+      <div><strong>Roll No.</strong> : {{ .RollNo }}</div>
+      <div><strong>Class/Section</strong> : {{ .Class }}</div>
+    </div>
+    <div>
+      <div><strong>Attendance</strong> : {{ .Attendance }}</div>
+      <div><strong>Result</strong> : {{ .Result }}</div>
+    </div>
+  </div>
+
+  <h3>Part I - Scholastic Area</h3>
+  <table>
+    <thead>
+      <tr><th>Subject</th><th>Unit Test</th><th>Obtained Marks</th></tr>
+    </thead>
+    <tbody>
+      {{ range .Subjects }}
+      <tr>
+        <td>{{ .Name }}</td>
+        <td>{{ .UnitTest }}</td>
+        <td>{{ .Marks }}</td>
+      </tr>
+      {{ end }}
+      <tr><td colspan="2"><strong>Total</strong></td><td>{{ .Total }}</td></tr>
+      <tr><td colspan="2"><strong>Percentage</strong></td><td>{{ .Percentage }}%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <div>Head Master</div>
+    <div>Class Teacher</div>
+    <div>Parent's Signature</div>
+  </div>
+</body>
+</html>
