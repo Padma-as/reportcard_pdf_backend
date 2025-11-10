@@ -58,7 +58,27 @@ type PageDecorationConfig struct {
 	MarginLeft   float64
 	MarginRight  float64
 }
+type StudentDetailsConfig struct {
+	IndexOrder       []int               // Order of fields from backend (like [1,7,4,3,...])
+	VisibleFields    map[string]bool     // To control which fields are shown
+	DisplayMode      string              // "single-column" or "two-column"
+	ShowProfilePic   bool
+	PicOnRight       bool
+	ProfilePicBase64 string
 
+	// Student data fields
+	StudentName     string
+	DateOfBirth     string
+	FatherName      string
+	MotherName      string
+	Address         string
+	Email           string
+	Mobile          string
+	AttendanceStats string
+	StudentClass    string
+	AcademicYear    string
+	StudentRollNo   string
+}
 func encodeImageToBase64(path string) string {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -300,12 +320,142 @@ layout = fmt.Sprintf(`
 
 	return fmt.Sprintf(`<div class="header-container" style="margin-bottom:10px;">%s</div>`, layout)
 }
+func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
+	// Step 1: Map numeric indices to field keys
+	indexFieldMap := map[int]string{
+		1:  "Name",
+		2:  "RollNo",
+		3:  "FatherName",
+		4:  "MotherName",
+		5:  "ClassSection",
+		6:  "AcademicYear",
+		7:  "DateOfBirth",
+		8:  "Attendance",
+		9:  "Address",
+		10: "Email",
+		11: "Mobile",
+	}
 
-// func generateFullHTML(cfg PageDecorationConfig, headerHTML string) string { ... }
-// ... (omitted parts for brevity)
-// Note: I am simplifying the border position to 5mm to align with the wkhtmltopdf margin, and using `10mm` as the main content padding.
+	// Step 2: Map field keys to actual values
+	fieldValueMap := map[string]string{
+		"Name":         cfg.StudentName,
+		"RollNo":       cfg.StudentRollNo,
+		"FatherName":   cfg.FatherName,
+		"MotherName":   cfg.MotherName,
+		"ClassSection": cfg.StudentClass,
+		"AcademicYear": cfg.AcademicYear,
+		"DateOfBirth":  cfg.DateOfBirth,
+		"Attendance":   cfg.AttendanceStats,
+		"Address":      cfg.Address,
+		"Email":        cfg.Email,
+		"Mobile":       cfg.Mobile,
+	}
 
-func generateFullHTML(cfg PageDecorationConfig, headerHTML string) string {
+	// Step 3: Render helper
+	renderField := func(label, value string) string {
+		if strings.TrimSpace(value) == "" {
+			return ""
+		}
+		return fmt.Sprintf(`<div style="margin: 0;"><b>%s:</b> %s</div>`, label, value)
+	}
+
+	// Step 4: Build list of enabled fields based on IndexOrder and VisibleFields
+	var enabledFields []string
+	for _, idx := range cfg.IndexOrder {
+		if fieldKey, ok := indexFieldMap[idx]; ok && cfg.VisibleFields[fieldKey] {
+			if val := fieldValueMap[fieldKey]; val != "" {
+				enabledFields = append(enabledFields, renderField(fieldKey, val))
+			}
+		}
+	}
+
+	isSingleColumn := strings.ToLower(cfg.DisplayMode) == "single-column"
+
+	// Step 5: Profile Picture
+	picHTML := ""
+	if cfg.ShowProfilePic && cfg.ProfilePicBase64 != "" {
+		picHTML = fmt.Sprintf(`
+			<div style="text-align:center; margin-bottom:10px;">
+				<img src="%s" alt="Student Photo"
+					style="width:80px; height:80px; border-radius:50%%; object-fit:cover; border:2px solid #ccc;"/>
+			</div>
+		`, cfg.ProfilePicBase64)
+	}
+
+	// Step 6: Build details layout
+	var detailsContainer string
+	if isSingleColumn {
+		// --- Single-column layout ---
+		detailsHTML := strings.Join(enabledFields, "")
+		detailsContainer = fmt.Sprintf(`
+			<div style="display:block; text-align:center; margin:0 auto;">
+				%s
+			</div>
+		`, detailsHTML)
+	} else {
+		// --- Two-column layout ---
+		if len(enabledFields) == 0 {
+			detailsContainer = ""
+		} else {
+			mid := int(math.Ceil(float64(len(enabledFields)) / 2))
+			leftCol := strings.Join(enabledFields[:mid], "")
+			rightCol := ""
+			if mid < len(enabledFields) {
+				rightCol = strings.Join(enabledFields[mid:], "")
+			}
+
+			detailsContainer = fmt.Sprintf(`
+				<div style="display:inline-block; width:50%%; vertical-align:top; text-align:left;">
+					%s
+				</div>
+				<div style="display:inline-block; width:50%%; vertical-align:top; text-align:left; margin-left:0%%;">
+					%s
+				</div>
+			`, leftCol, rightCol)
+		}
+	}
+
+	// Step 7: Combine picture + details
+	var contentHTML string
+	if isSingleColumn {
+		contentHTML = fmt.Sprintf("%s%s", picHTML, detailsContainer)
+	} else {
+		if cfg.ShowProfilePic && cfg.ProfilePicBase64 != "" {
+			if cfg.PicOnRight {
+				contentHTML = fmt.Sprintf(`
+					<div style="display:inline-block; width:75%%; vertical-align:middle;">%s</div>
+					<div style="display:inline-block; width:20%%; vertical-align:middle; text-align:right; margin-left:5%%;">%s</div>
+				`, detailsContainer, picHTML)
+			} else {
+				contentHTML = fmt.Sprintf(`
+					<div style="display:inline-block; width:20%%; vertical-align:middle; text-align:left; margin-right:5%%;">%s</div>
+					<div style="display:inline-block; width:75%%; vertical-align:middle;">%s</div>
+				`, picHTML, detailsContainer)
+			}
+		} else {
+			contentHTML = detailsContainer
+		}
+	}
+
+	// Step 8: Outer wrapper
+	wrapperStyle := "margin:0;"
+	if isSingleColumn {
+		wrapperStyle += "text-align:center; display:block;"
+	} else {
+		wrapperStyle += "white-space:nowrap; text-align:left;"
+	}
+
+	return fmt.Sprintf(`
+		<div style="%s">
+			%s
+		</div>
+	`, wrapperStyle, contentHTML)
+}
+
+
+
+
+func generateReportContentHTML(cfg PageDecorationConfig, headerHTML string, studentDetailsHTML string) string {
 	bgStyle := ""
 	if cfg.ShowBackground && cfg.BackgroundImage != "" {
 		bgStyle = fmt.Sprintf(
@@ -396,13 +546,7 @@ func generateFullHTML(cfg PageDecorationConfig, headerHTML string) string {
 
 			<div class="content-zone">
 				<hr style="margin:20px 0;"/>
-				<div style="margin:0 20px;text-align:left;">
-					<h3>Student Details</h3>
-					<p><b>Name:</b> John Doe</p>
-					<p><b>Class:</b> 10th Standard</p>
-					<p><b>Roll No:</b> 25</p>
-					<p><b>Academic Year:</b> 2024 - 2025</p>
-				</div>
+				%s<div  class="std-details" style="margin:0 20px;text-align:left;"></div>
 
 				<div style="margin:30px 20px;text-align:left;">
 					<h3>Marks Summary</h3>
@@ -421,7 +565,7 @@ func generateFullHTML(cfg PageDecorationConfig, headerHTML string) string {
 		</div>
 	</body>
 	</html>
-	`, bgStyle, watermarkHTML, borderHTML, headerHTML)
+	`, bgStyle, watermarkHTML, borderHTML, headerHTML,studentDetailsHTML)
 }
 
 func main() {
@@ -450,8 +594,47 @@ func main() {
 	MarginLeft:      0,
 	MarginRight:    0,
 }
+studentCfg := StudentDetailsConfig{
+	ShowProfilePic:   true,
+	PicOnRight:       false,
+	ProfilePicBase64: encodeImageToBase64("./assets/colorwatermark.png"),
+
+	StudentName:   "John Doe",
+	StudentClass:  "10th Standard",
+	StudentRollNo: "25",
+	AcademicYear:  "2024 - 2025",
+	DateOfBirth:   "15-08-2009",
+	FatherName:    "Mr. Richard Doe",
+	MotherName:    "Mrs. Emily Doe",
+	Address:       "123 Main Street, Springfield",
+	Email:         "john.doe@example.com",
+	Mobile:        "9876543210",
+	AttendanceStats: "95%",
 	
-	fullHTML := generateFullHTML(pageCfg, headerHTML)
+	DisplayMode: "two-column", // "single-column" or "two-column"
+
+	// Backend-provided field order (using numeric indices)
+	IndexOrder: []int{1, 7, 4, 3, 9, 10, 11, 8, 5, 6, 2},
+
+	// Visibility map (which fields to show)
+	VisibleFields: map[string]bool{
+		"Name":         true,
+		"DateOfBirth":  true,
+		"MotherName":   true,
+		"FatherName":   true,
+		"Address":      true,
+		"Email":        false,
+		"Mobile":       false,
+		"Attendance":   true,
+		"ClassSection": false,
+		"AcademicYear": true,
+		"RollNo":       true,
+	},
+}
+
+        studentDetailsHTML := generateStudentDetailsHTML(studentCfg)
+
+	fullHTML := generateReportContentHTML(pageCfg, headerHTML,studentDetailsHTML)
 
 	pdfg, err := wkhtmltopdf.NewPDFGenerator()
 	if err != nil {
