@@ -1,0 +1,30 @@
+.single-image {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  text-align: center;
+}
+.two-images{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-direction: row;
+  width: 100%;
+}
+.three-images {
+  display: flex;
+  justify-content: space-between;
+}
+.logo-image {
+  max-width: 100px;
+  max-height: 100px;
+}
+.institution-text {
+  text-align: center;
+  flex: 1;
+  text-align: center;
+  font-family: "Arial", sans-serif;
+  line-height: 1.4;
+}
