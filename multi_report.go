@@ -301,11 +301,16 @@ layout = fmt.Sprintf(`
 	return fmt.Sprintf(`<div class="header-container" style="margin-bottom:10px;">%s</div>`, layout)
 }
 
+// func generateFullHTML(cfg PageDecorationConfig, headerHTML string) string { ... }
+// ... (omitted parts for brevity)
+// Note: I am simplifying the border position to 5mm to align with the wkhtmltopdf margin, and using `10mm` as the main content padding.
 
 func generateFullHTML(cfg PageDecorationConfig, headerHTML string) string {
 	bgStyle := ""
 	if cfg.ShowBackground && cfg.BackgroundImage != "" {
-		bgStyle = fmt.Sprintf("background: url('%s') no-repeat center center; background-size: cover;", cfg.BackgroundImage)
+		bgStyle = fmt.Sprintf(
+			"background: url('%s') no-repeat center center; background-size: cover; padding:%.1fmm %.1fmm %.1fmm %.1fmm;",
+			cfg.BackgroundImage, cfg.MarginTop, cfg.MarginRight, cfg.MarginBottom, cfg.MarginLeft)
 	}
 
 	watermarkHTML := ""
@@ -317,8 +322,19 @@ func generateFullHTML(cfg PageDecorationConfig, headerHTML string) string {
 
 	borderHTML := ""
 	if cfg.ShowBorder {
-		borderHTML = fmt.Sprintf(
-			`<div class="border" style="border:%fpx solid %s;"></div>`,
+	
+		borderHTML = fmt.Sprintf(`
+			<div class="border" 
+				style="
+					position: absolute;
+					top: 5mm;
+					left: 5mm;
+					right: 5mm;
+					bottom: 5mm;
+					border: %.2fmm solid %s;
+					box-sizing: border-box;
+					z-index: 2;">
+			</div>`,
 			cfg.BorderWidth, cfg.BorderColor)
 	}
 
@@ -332,17 +348,16 @@ func generateFullHTML(cfg PageDecorationConfig, headerHTML string) string {
 		@page { margin: 0; }
 		html, body {
 			margin: 0;
-			padding: 10;
+			padding: 0;
 			height: 100%%;
 			width: 100%%;
 			font-family: Arial, sans-serif;
+			box-sizing: border-box;
 		}
 
 		body {
 			%s
 			position: relative;
-			padding: %.1fmm %.1fmm %.1fmm %.1fmm; /* top right bottom left */
-			box-sizing: border-box;
 		}
 
 		.watermark {
@@ -355,58 +370,58 @@ func generateFullHTML(cfg PageDecorationConfig, headerHTML string) string {
 			z-index: 1;
 		}
 
-		.border {
-			position: absolute;
-			top: 10px;
-			left: 10px;
-			width: calc(100%% - 20px);
-			height: calc(100%% - 20px);
-			box-sizing: border-box;
-			z-index: 2;
+		.main-content-wrapper {
+			/* Add 10mm padding to keep all content away from the border */
+			padding: 10mm;
+			position: relative; /* Ensure it respects Z-index */
+			z-index: 3;
 		}
 
-		.content {
-			position: relative;
-			z-index: 3;
+		.header-zone {
+			text-align: center;
+			margin-bottom: 10px;
+		}
+
+		.content-zone {
+			padding: 0;
+			box-sizing: border-box;
 		}
 	</style>
 	</head>
 	<body>
 		%s
 		%s
-		<div class="content">
-			%s
+		<div class="main-content-wrapper">
+			<div class="header-zone">%s</div>
 
-			<hr style="margin:30px 0;"/>
+			<div class="content-zone">
+				<hr style="margin:20px 0;"/>
+				<div style="margin:0 20px;text-align:left;">
+					<h3>Student Details</h3>
+					<p><b>Name:</b> John Doe</p>
+					<p><b>Class:</b> 10th Standard</p>
+					<p><b>Roll No:</b> 25</p>
+					<p><b>Academic Year:</b> 2024 - 2025</p>
+				</div>
 
-			<div style="margin:0 50px;text-align:left;">
-				<h3>Student Details</h3>
-				<p><b>Name:</b> John Doe</p>
-				<p><b>Class:</b> 10th Standard</p>
-				<p><b>Roll No:</b> 25</p>
-				<p><b>Academic Year:</b> 2024 - 2025</p>
-			</div>
-
-			<div style="margin:30px 50px;text-align:left;">
-				<h3>Marks Summary</h3>
-				<table style="width:100%%;border-collapse:collapse;">
-					<tr style="background:#f2f2f2;">
-						<th style="border:1px solid #ccc;padding:8px;">Subject</th>
-						<th style="border:1px solid #ccc;padding:8px;">Marks</th>
-						<th style="border:1px solid #ccc;padding:8px;">Grade</th>
-					</tr>
-					<tr><td style="border:1px solid #ccc;padding:8px;">Maths</td><td style="border:1px solid #ccc;padding:8px;">95</td><td style="border:1px solid #ccc;padding:8px;">A+</td></tr>
-					<tr><td style="border:1px solid #ccc;padding:8px;">Science</td><td style="border:1px solid #ccc;padding:8px;">88</td><td style="border:1px solid #ccc;padding:8px;">A</td></tr>
-					<tr><td style="border:1px solid #ccc;padding:8px;">English</td><td style="border:1px solid #ccc;padding:8px;">92</td><td style="border:1px solid #ccc;padding:8px;">A+</td></tr>
-				</table>
+				<div style="margin:30px 20px;text-align:left;">
+					<h3>Marks Summary</h3>
+					<table style="width:100%%;border-collapse:collapse;">
+						<tr style="background:#f2f2f2;">
+							<th style="border:1px solid #ccc;padding:8px;">Subject</th>
+							<th style="border:1px solid #ccc;padding:8px;">Marks</th>
+							<th style="border:1px solid #ccc;padding:8px;">Grade</th>
+						</tr>
+						<tr><td style="border:1px solid #ccc;padding:8px;">Maths</td><td style="border:1px solid #ccc;padding:8px;">95</td><td style="border:1px solid #ccc;padding:8px;">A+</td></tr>
+						<tr><td style="border:1px solid #ccc;padding:8px;">Science</td><td style="border:1px solid #ccc;padding:8px;">88</td><td style="border:1px solid #ccc;padding:8px;">A</td></tr>
+						<tr><td style="border:1px solid #ccc;padding:8px;">English</td><td style="border:1px solid #ccc;padding:8px;">92</td><td style="border:1px solid #ccc;padding:8px;">A+</td></tr>
+					</table>
+				</div>
 			</div>
 		</div>
 	</body>
 	</html>
-	`,
-		bgStyle,
-		cfg.MarginTop, cfg.MarginRight, cfg.MarginBottom, cfg.MarginLeft,
-		watermarkHTML, borderHTML, headerHTML)
+	`, bgStyle, watermarkHTML, borderHTML, headerHTML)
 }
 
 func main() {
@@ -423,17 +438,17 @@ func main() {
 
     pageCfg := PageDecorationConfig{
 	ShowBackground:   true,
-	ShowWatermark:    true,
-	ShowBorder:       true,
+	ShowWatermark:    false,
+	ShowBorder:       false,
 	BackgroundImage:  encodeImageToBase64("./assets/background.png"),
 	WatermarkImage:   encodeImageToBase64("./assets/watermark.jpeg"),
 	BorderColor:      "#1a237e",
 	BorderWidth:      1.5,
 	WatermarkOpacity: 0.15,
-	MarginTop:        0,
-	MarginBottom:     0,
-	MarginLeft:       0,
-	MarginRight:      0,
+	MarginTop:       0,
+	MarginBottom:    0,
+	MarginLeft:      0,
+	MarginRight:    0,
 }
 	
 	fullHTML := generateFullHTML(pageCfg, headerHTML)
