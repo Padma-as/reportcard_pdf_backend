@@ -9,7 +9,7 @@ import (
 	"log"
 	"os"
 	"strings"
-
+"math"
 	"github.com/SebastiaanKlippert/go-wkhtmltopdf"
 )
 type InstitutionTextConfig struct {
@@ -40,6 +40,24 @@ type InstitutionTextConfig struct {
 	AddressColor string
 	ContactColor string
 }
+type PageDecorationConfig struct {
+	ShowBackground bool
+	ShowWatermark  bool
+	ShowBorder     bool
+
+	BackgroundImage string
+	WatermarkImage  string
+
+	BorderColor      string
+	BorderWidth      float64 // in pixels
+	WatermarkOpacity float64
+
+	// Margins (in mm)
+	MarginTop    float64
+	MarginBottom float64
+	MarginLeft   float64
+	MarginRight  float64
+}
 
 func encodeImageToBase64(path string) string {
 	data, err := os.ReadFile(path)
@@ -49,110 +67,68 @@ func encodeImageToBase64(path string) string {
 	}
 	return fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(data))
 }
+func pageSetup(pdfg *wkhtmltopdf.PDFGenerator, cfg PageDecorationConfig) {
+	pdfg.PageSize.Set(wkhtmltopdf.PageSizeA4)
+pdfg.MarginTop.Set(uint(math.Round(cfg.MarginTop)))
+pdfg.MarginBottom.Set(uint(math.Round(cfg.MarginBottom)))
+pdfg.MarginLeft.Set(uint(math.Round(cfg.MarginLeft)))
+pdfg.MarginRight.Set(uint(math.Round(cfg.MarginRight)))
 
-
-func decoratePDFWithWkhtmltopdf(outputPath string) error {
-	// Create new PDF generator
-	pdfg, err := wkhtmltopdf.NewPDFGenerator()
-	if err != nil {
-		return err
-	}
-
-	// ---- HTML content with background, watermark, border ----
-	html := `
+}
+func decoratePage(bgBase64, wmBase64 string) string {
+	return fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="utf-8">
 <style>
-  @page {
+  @page { margin: 0; }
+  html, body {
     margin: 0;
+    padding: 0;
+    height: 100%%;
+    width: 100%%;
   }
 
   body {
-    margin: 0;
-    width: 100%;
-    height: 100%;
-    position: relative;
-    font-family: sans-serif;
-  }
-
-  /* Background image */
-  .bg {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: url('assets/background.png') no-repeat center center;
+    background: url('%s') no-repeat center center;
     background-size: cover;
-    z-index: 0;
+    position: relative;
   }
 
-  /* Watermark */
+  /* Watermark centered */
   .watermark {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 150px; /* resize as needed */
-    transform: translate(-50%, -50%);
-    opacity: 0.6;
+    top: 50%%;
+    left: 50%%;
+    transform: translate(-50%%, -50%%);
+    width: 200px;
+    opacity: 0.15;
     filter: blur(1px);
     z-index: 1;
   }
 
-  /* Optional border */
+  /* Border over full page */
   .border {
     position: absolute;
-    top: 8px;
-    left: 8px;
-    width: calc(100% - 16px);
-    height: calc(100% - 16px);
-    border: 0.8px solid rgb(50,50,150);
+    top: 10px;
+    left: 10px;
+    width: calc(100%% - 20px);
+    height: calc(100%% - 20px);
+    border: 1.5px solid #1a237e;
     box-sizing: border-box;
     z-index: 2;
-  }
-
-  /* Content goes above background and watermark */
-  .content {
-    position: relative;
-    z-index: 3;
-    padding: 20px;
   }
 </style>
 </head>
 <body>
-  <div class="bg"></div>
-  <img class="watermark" src="assets/colorwatermark.png"/>
+  <img class="watermark" src="%s" />
   <div class="border"></div>
-
-  <div class="content">
-    <h1>Student Report</h1>
-    <p>This is sample content on top of the background and watermark.</p>
-  </div>
 </body>
 </html>
-`
-
-	// Create a new page
-	page := wkhtmltopdf.NewPageReader(strings.NewReader(html))
-	pdfg.AddPage(page)
-
-	// Set PDF options
-	pdfg.PageSize.Set(wkhtmltopdf.PageSizeA4)
-	pdfg.MarginLeft.Set(0)
-	pdfg.MarginRight.Set(0)
-	pdfg.MarginTop.Set(0)
-	pdfg.MarginBottom.Set(0)
-
-	// Generate PDF
-	err = pdfg.Create()
-	if err != nil {
-		return err
-	}
-
-	// Write PDF to file
-	return pdfg.WriteFile(outputPath)
+`, bgBase64, wmBase64)
 }
+
 func generateInstitutionTextHTML(cfg InstitutionTextConfig) string {
 	html := `<div class="institution-text" style="text-align:center; line-height:1.4;">`
 	if cfg.ShowHeader {
@@ -326,49 +302,111 @@ layout = fmt.Sprintf(`
 }
 
 
-func generateFullHTML(headerHTML string) string {
-	body := `
-		<hr style="margin:30px 0;"/>
+func generateFullHTML(cfg PageDecorationConfig, headerHTML string) string {
+	bgStyle := ""
+	if cfg.ShowBackground && cfg.BackgroundImage != "" {
+		bgStyle = fmt.Sprintf("background: url('%s') no-repeat center center; background-size: cover;", cfg.BackgroundImage)
+	}
 
-		<div style="margin:0 50px;text-align:left;">
-			<h3>Student Details</h3>
-			<p><b>Name:</b> John Doe</p>
-			<p><b>Class:</b> 10th Standard</p>
-			<p><b>Roll No:</b> 25</p>
-			<p><b>Academic Year:</b> 2024 - 2025</p>
-		</div>
+	watermarkHTML := ""
+	if cfg.ShowWatermark && cfg.WatermarkImage != "" {
+		watermarkHTML = fmt.Sprintf(
+			`<img class="watermark" src="%s" style="opacity:%f;" />`,
+			cfg.WatermarkImage, cfg.WatermarkOpacity)
+	}
 
-		<div style="margin:30px 50px;text-align:left;">
-			<h3>Marks Summary</h3>
-			<table style="width:100%;border-collapse:collapse;">
-				<tr style="background:#f2f2f2;">
-					<th style="border:1px solid #ccc;padding:8px;">Subject</th>
-					<th style="border:1px solid #ccc;padding:8px;">Marks</th>
-					<th style="border:1px solid #ccc;padding:8px;">Grade</th>
-				</tr>
-				<tr><td style="border:1px solid #ccc;padding:8px;">Maths</td><td style="border:1px solid #ccc;padding:8px;">95</td><td style="border:1px solid #ccc;padding:8px;">A+</td></tr>
-				<tr><td style="border:1px solid #ccc;padding:8px;">Science</td><td style="border:1px solid #ccc;padding:8px;">88</td><td style="border:1px solid #ccc;padding:8px;">A</td></tr>
-				<tr><td style="border:1px solid #ccc;padding:8px;">English</td><td style="border:1px solid #ccc;padding:8px;">92</td><td style="border:1px solid #ccc;padding:8px;">A+</td></tr>
-			</table>
-		</div>
-	`
-
-	// Insert CSS content directly inside a <style> tag
-
+	borderHTML := ""
+	if cfg.ShowBorder {
+		borderHTML = fmt.Sprintf(
+			`<div class="border" style="border:%fpx solid %s;"></div>`,
+			cfg.BorderWidth, cfg.BorderColor)
+	}
 
 	return fmt.Sprintf(`
 	<!DOCTYPE html>
 	<html>
 	<head>
-	  <meta charset="utf-8">
-	  <title>Eduate Report</title>
-	  %s
+	<meta charset="utf-8">
+	<title>Eduate Report</title>
+	<style>
+		@page { margin: 0; }
+		html, body {
+			margin: 0;
+			padding: 10;
+			height: 100%%;
+			width: 100%%;
+			font-family: Arial, sans-serif;
+		}
+
+		body {
+			%s
+			position: relative;
+			padding: %.1fmm %.1fmm %.1fmm %.1fmm; /* top right bottom left */
+			box-sizing: border-box;
+		}
+
+		.watermark {
+			position: absolute;
+			top: 50%%;
+			left: 50%%;
+			transform: translate(-50%%, -50%%);
+			width: 250px;
+			filter: blur(1px);
+			z-index: 1;
+		}
+
+		.border {
+			position: absolute;
+			top: 10px;
+			left: 10px;
+			width: calc(100%% - 20px);
+			height: calc(100%% - 20px);
+			box-sizing: border-box;
+			z-index: 2;
+		}
+
+		.content {
+			position: relative;
+			z-index: 3;
+		}
+	</style>
 	</head>
-	<body style="font-family:Arial, sans-serif; margin:30px;">
-	%s
-	%s
+	<body>
+		%s
+		%s
+		<div class="content">
+			%s
+
+			<hr style="margin:30px 0;"/>
+
+			<div style="margin:0 50px;text-align:left;">
+				<h3>Student Details</h3>
+				<p><b>Name:</b> John Doe</p>
+				<p><b>Class:</b> 10th Standard</p>
+				<p><b>Roll No:</b> 25</p>
+				<p><b>Academic Year:</b> 2024 - 2025</p>
+			</div>
+
+			<div style="margin:30px 50px;text-align:left;">
+				<h3>Marks Summary</h3>
+				<table style="width:100%%;border-collapse:collapse;">
+					<tr style="background:#f2f2f2;">
+						<th style="border:1px solid #ccc;padding:8px;">Subject</th>
+						<th style="border:1px solid #ccc;padding:8px;">Marks</th>
+						<th style="border:1px solid #ccc;padding:8px;">Grade</th>
+					</tr>
+					<tr><td style="border:1px solid #ccc;padding:8px;">Maths</td><td style="border:1px solid #ccc;padding:8px;">95</td><td style="border:1px solid #ccc;padding:8px;">A+</td></tr>
+					<tr><td style="border:1px solid #ccc;padding:8px;">Science</td><td style="border:1px solid #ccc;padding:8px;">88</td><td style="border:1px solid #ccc;padding:8px;">A</td></tr>
+					<tr><td style="border:1px solid #ccc;padding:8px;">English</td><td style="border:1px solid #ccc;padding:8px;">92</td><td style="border:1px solid #ccc;padding:8px;">A+</td></tr>
+				</table>
+			</div>
+		</div>
 	</body>
-	</html>`, headerHTML, body)
+	</html>
+	`,
+		bgStyle,
+		cfg.MarginTop, cfg.MarginRight, cfg.MarginBottom, cfg.MarginLeft,
+		watermarkHTML, borderHTML, headerHTML)
 }
 
 func main() {
@@ -376,22 +414,36 @@ func main() {
 	photo2 := encodeImageToBase64("./assets/Arcadis_Logo.png")
 	instLogo := encodeImageToBase64("./assets/Arcadis_Logo.png")
 
-	// choose config
+
 	PrintPhoto1Config := false
 	PrintPhoto2Config := true
 	PrintInstLogo := true
 
-
-
-	// generate header and full HTML (use your existing header generator)
 	headerHTML := generateHeaderHTML(PrintPhoto1Config, PrintPhoto2Config, PrintInstLogo, photo1, photo2, instLogo)
-	fullHTML := generateFullHTML(headerHTML)
+
+    pageCfg := PageDecorationConfig{
+	ShowBackground:   true,
+	ShowWatermark:    true,
+	ShowBorder:       true,
+	BackgroundImage:  encodeImageToBase64("./assets/background.png"),
+	WatermarkImage:   encodeImageToBase64("./assets/watermark.jpeg"),
+	BorderColor:      "#1a237e",
+	BorderWidth:      1.5,
+	WatermarkOpacity: 0.15,
+	MarginTop:        0,
+	MarginBottom:     0,
+	MarginLeft:       0,
+	MarginRight:      0,
+}
+	
+	fullHTML := generateFullHTML(pageCfg, headerHTML)
 
 	pdfg, err := wkhtmltopdf.NewPDFGenerator()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+pageSetup(pdfg, pageCfg) 
 	page := wkhtmltopdf.NewPageReader(strings.NewReader(fullHTML))
 	pdfg.AddPage(page)
 
