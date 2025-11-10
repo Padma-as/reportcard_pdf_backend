@@ -78,6 +78,8 @@ type StudentDetailsConfig struct {
 	StudentClass    string
 	AcademicYear    string
 	StudentRollNo   string
+    ProfilePicWidth  int
+    ProfilePicHeight int
 }
 func encodeImageToBase64(path string) string {
 	data, err := os.ReadFile(path)
@@ -372,15 +374,16 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 	isSingleColumn := strings.ToLower(cfg.DisplayMode) == "single-column"
 
 	// Step 5: Profile Picture
-	picHTML := ""
-	if cfg.ShowProfilePic && cfg.ProfilePicBase64 != "" {
-		picHTML = fmt.Sprintf(`
-			<div style="text-align:center; margin-bottom:10px;">
-				<img src="%s" alt="Student Photo"
-					style="width:80px; height:80px; border-radius:50%%; object-fit:cover; border:2px solid #ccc;"/>
-			</div>
-		`, cfg.ProfilePicBase64)
-	}
+picHTML := ""
+    if cfg.ShowProfilePic && cfg.ProfilePicBase64 != "" {
+        // Assume cfg has fields like ProfilePicWidth and ProfilePicHeight (e.g., as int/float)
+        picHTML = fmt.Sprintf(`
+            <div style="text-align:center; margin-bottom:10px;">
+                <img src="%s" alt="Student Photo"
+                    style="width:%dpx; height:%dpx; border-radius:50%%; object-fit:cover; border:2px solid #ccc;"/>
+            </div>
+        `, cfg.ProfilePicBase64, cfg.ProfilePicWidth, cfg.ProfilePicHeight)
+    }
 
 	// Step 6: Build details layout
 	var detailsContainer string
@@ -417,26 +420,32 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 
 	// Step 7: Combine picture + details
 	var contentHTML string
-	if isSingleColumn {
-		contentHTML = fmt.Sprintf("%s%s", picHTML, detailsContainer)
-	} else {
-		if cfg.ShowProfilePic && cfg.ProfilePicBase64 != "" {
-			if cfg.PicOnRight {
-				contentHTML = fmt.Sprintf(`
-					<div style="display:inline-block; width:75%%; vertical-align:middle;">%s</div>
-					<div style="display:inline-block; width:20%%; vertical-align:middle; text-align:right; margin-left:5%%;">%s</div>
-				`, detailsContainer, picHTML)
-			} else {
-				contentHTML = fmt.Sprintf(`
-					<div style="display:inline-block; width:20%%; vertical-align:middle; text-align:left; margin-right:5%%;">%s</div>
-					<div style="display:inline-block; width:75%%; vertical-align:middle;">%s</div>
-				`, picHTML, detailsContainer)
-			}
-		} else {
-			contentHTML = detailsContainer
-		}
-	}
-
+if isSingleColumn {
+        contentHTML = fmt.Sprintf("%s%s", picHTML, detailsContainer)
+    } else {
+        // Retrieve the width from config, assuming it's an integer
+        photoWidth := cfg.ProfilePicWidth 
+        photoWidthPx := fmt.Sprintf("%dpx", photoWidth) // e.g., "250px"
+        
+        // Calculate the dynamic width string for the details container
+        detailsWidthCalc := fmt.Sprintf("calc(85%% - %dpx)", photoWidth)
+        
+        if cfg.ShowProfilePic && cfg.ProfilePicBase64 != "" {
+            if cfg.PicOnRight {
+                contentHTML = fmt.Sprintf(`
+                    <div style="display:inline-block; width:%s; vertical-align:middle;">%s</div>
+                    <div style="display:inline-block; width:%s; vertical-align:middle; text-align:right; margin-left:10px;">%s</div>
+                `, detailsWidthCalc, detailsContainer, photoWidthPx, picHTML)
+            } else {
+                contentHTML = fmt.Sprintf(`
+                    <div style="display:inline-block; width:%s; vertical-align:middle; text-align:left; margin-right:10px;">%s</div>
+                    <div style="display:inline-block; width:%s; vertical-align:middle;">%s</div>
+                `, photoWidthPx, picHTML, detailsWidthCalc, detailsContainer)
+            }
+        } else {
+            contentHTML = detailsContainer
+        }
+    }
 	// Step 8: Outer wrapper
 	wrapperStyle := "margin:0;"
 	if isSingleColumn {
@@ -610,7 +619,8 @@ studentCfg := StudentDetailsConfig{
 	Email:         "john.doe@example.com",
 	Mobile:        "9876543210",
 	AttendanceStats: "95%",
-	
+	ProfilePicWidth: 80,
+    ProfilePicHeight:80,
 	DisplayMode: "two-column", // "single-column" or "two-column"
 
 	// Backend-provided field order (using numeric indices)
