@@ -428,7 +428,7 @@ if isSingleColumn {
         photoWidthPx := fmt.Sprintf("%dpx", photoWidth) // e.g., "250px"
         
         // Calculate the dynamic width string for the details container
-        detailsWidthCalc := fmt.Sprintf("calc(85%% - %dpx)", photoWidth)
+        detailsWidthCalc := fmt.Sprintf("calc(100%% - %dpx)", photoWidth)
         
         if cfg.ShowProfilePic && cfg.ProfilePicBase64 != "" {
             if cfg.PicOnRight {
@@ -524,7 +524,7 @@ func generateReportContentHTML(cfg PageDecorationConfig, headerHTML string, stud
 			top: 50%%;
 			left: 50%%;
 			transform: translate(-50%%, -50%%);
-			width: 250px;
+			width: 150px;
 			filter: blur(1px);
 			z-index: 1;
 		}
@@ -591,7 +591,7 @@ func main() {
 
     pageCfg := PageDecorationConfig{
 	ShowBackground:   true,
-	ShowWatermark:    false,
+	ShowWatermark:    true,
 	ShowBorder:       false,
 	BackgroundImage:  encodeImageToBase64("./assets/background.png"),
 	WatermarkImage:   encodeImageToBase64("./assets/watermark.jpeg"),
