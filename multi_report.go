@@ -6,7 +6,6 @@ package main
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -51,16 +50,109 @@ func encodeImageToBase64(path string) string {
 	return fmt.Sprintf("data:image/png;base64,%s", base64.StdEncoding.EncodeToString(data))
 }
 
-// readCSS reads CSS file contents and returns a string safe to place in <style>
-func readCSS(path string) string {
-	b, err := ioutil.ReadFile(path)
-	if err != nil {
-		log.Printf("Warning: couldn't read CSS %s: %v", path, err)
-		return ""
-	}
-	return string(b)
-}
 
+func decoratePDFWithWkhtmltopdf(outputPath string) error {
+	// Create new PDF generator
+	pdfg, err := wkhtmltopdf.NewPDFGenerator()
+	if err != nil {
+		return err
+	}
+
+	// ---- HTML content with background, watermark, border ----
+	html := `
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  @page {
+    margin: 0;
+  }
+
+  body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    font-family: sans-serif;
+  }
+
+  /* Background image */
+  .bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('assets/background.png') no-repeat center center;
+    background-size: cover;
+    z-index: 0;
+  }
+
+  /* Watermark */
+  .watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 150px; /* resize as needed */
+    transform: translate(-50%, -50%);
+    opacity: 0.6;
+    filter: blur(1px);
+    z-index: 1;
+  }
+
+  /* Optional border */
+  .border {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: calc(100% - 16px);
+    height: calc(100% - 16px);
+    border: 0.8px solid rgb(50,50,150);
+    box-sizing: border-box;
+    z-index: 2;
+  }
+
+  /* Content goes above background and watermark */
+  .content {
+    position: relative;
+    z-index: 3;
+    padding: 20px;
+  }
+</style>
+</head>
+<body>
+  <div class="bg"></div>
+  <img class="watermark" src="assets/colorwatermark.png"/>
+  <div class="border"></div>
+
+  <div class="content">
+    <h1>Student Report</h1>
+    <p>This is sample content on top of the background and watermark.</p>
+  </div>
+</body>
+</html>
+`
+
+	// Create a new page
+	page := wkhtmltopdf.NewPageReader(strings.NewReader(html))
+	pdfg.AddPage(page)
+
+	// Set PDF options
+	pdfg.PageSize.Set(wkhtmltopdf.PageSizeA4)
+	pdfg.MarginLeft.Set(0)
+	pdfg.MarginRight.Set(0)
+	pdfg.MarginTop.Set(0)
+	pdfg.MarginBottom.Set(0)
+
+	// Generate PDF
+	err = pdfg.Create()
+	if err != nil {
+		return err
+	}
+
+	// Write PDF to file
+	return pdfg.WriteFile(outputPath)
+}
 func generateInstitutionTextHTML(cfg InstitutionTextConfig) string {
 	html := `<div class="institution-text" style="text-align:center; line-height:1.4;">`
 	if cfg.ShowHeader {
@@ -103,7 +195,6 @@ if cfg.ShowWebsite {
 	return html
 }
 // generateHeaderHTML dynamically builds the header layout
-// based on how many images (1, 2, or 3) are enabled.
 func generateHeaderHTML(printPhoto1Config, printPhoto2Config, printInstLogo bool, photo1, photo2, instLogo string) string {
 	count := 0
 	if printPhoto1Config {
@@ -235,7 +326,7 @@ layout = fmt.Sprintf(`
 }
 
 
-func generateFullHTML(headerHTML string, cssContent string) string {
+func generateFullHTML(headerHTML string) string {
 	body := `
 		<hr style="margin:30px 0;"/>
 
@@ -263,10 +354,7 @@ func generateFullHTML(headerHTML string, cssContent string) string {
 	`
 
 	// Insert CSS content directly inside a <style> tag
-	cssBlock := ""
-	if cssContent != "" {
-		cssBlock = fmt.Sprintf("<style>\n%s\n</style>", cssContent)
-	}
+
 
 	return fmt.Sprintf(`
 	<!DOCTYPE html>
@@ -280,7 +368,7 @@ func generateFullHTML(headerHTML string, cssContent string) string {
 	%s
 	%s
 	</body>
-	</html>`, cssBlock, headerHTML, body)
+	</html>`, headerHTML, body)
 }
 
 func main() {
@@ -293,16 +381,11 @@ func main() {
 	PrintPhoto2Config := true
 	PrintInstLogo := true
 
-	// read CSS file and inline it
-	cssPath := "./templates/style.css" // adjust if your CSS is elsewhere
-	cssContent := readCSS(cssPath)
-	if cssContent == "" {
-		fmt.Println("Warning: CSS content empty or not found - PDF will use only inline styles.")
-	}
+
 
 	// generate header and full HTML (use your existing header generator)
 	headerHTML := generateHeaderHTML(PrintPhoto1Config, PrintPhoto2Config, PrintInstLogo, photo1, photo2, instLogo)
-	fullHTML := generateFullHTML(headerHTML, cssContent)
+	fullHTML := generateFullHTML(headerHTML)
 
 	pdfg, err := wkhtmltopdf.NewPDFGenerator()
 	if err != nil {
@@ -310,7 +393,6 @@ func main() {
 	}
 
 	page := wkhtmltopdf.NewPageReader(strings.NewReader(fullHTML))
-	// Do NOT rely on page.CustomArgs or AllowLocalFileAccess (they may not exist in your wrapper)
 	pdfg.AddPage(page)
 
 	if err := pdfg.Create(); err != nil {
