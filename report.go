@@ -280,14 +280,17 @@ func generateInstitutionDetailsHTML(cfg InstitutionDetailsConfig) string {
 		<div style="color:%s; font-size:%dpx;">%s</div>
 		<div style="color:%s; font-size:%dpx;">%s</div>
 		<div style="color:%s; font-size:%dpx;">%s, %s - %s</div>
-		<div style="color:%s; font-size:%dpx;">%s | %s</div>
+		<div style="color:%s; font-size:%dpx;">%s</div>
+				<div style="color:%s; font-size:%dpx;">%s</div>
+
 	</div>
 	`,
 		cfg.EnableHeaderText(),
 		cfg.InstNameColor, cfg.InstNameFontSize, cfg.InstName,
 		cfg.AffiliatedColor, cfg.AffiliatedFontSize, cfg.PrintAffiliatedTo,
 		cfg.AddressColor, cfg.AddressFontSize, cfg.InstAddress, cfg.InstPlace, cfg.InstPin,
-		cfg.WebsiteColor, cfg.WebsiteFontSize, cfg.InstWebsite, cfg.InstEmail,
+		cfg.WebsiteColor, cfg.WebsiteFontSize, cfg.InstWebsite,
+		cfg.EmailColor, cfg.EmailFontSize, cfg.InstEmail,
 	)
 
 	var headerRowHTML string
