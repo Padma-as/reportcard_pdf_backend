@@ -1,0 +1,49 @@
+%PDF-1.4
+%׃כיב
+1 0 obj
+<</Title (data:text/html,%0A<!DOCTYPE html>%0A<html>%0A<head>%0A<meta charset="utf-8">%0A<style>%0A  html, body {%0A    margin: 0;%0A    padding: 0;%0A    height: 100%;%0A    width: 100%;%0A  }%0A  body {%0A    %0A    position: relative;%0A  }%0A%0A  .watermark {%0A    position: absolute;%0A    top: 50%;%0A    left: 50%;%0A    transform: translate\(-50%, -50%\);%0A    width: 200px;%0A    opacity: 0.15;%0A    filter: blur\(1px\);%0A    z-index: 1;%0A    pointer-events: none;%0A  }%0A%0A  .border {%0A    position: absolute;%0A    top: 37.80px;%0A    left: 37.80px;%0A    width: calc\(100% - 37.80px - 37.80px\);%0A    height: calc\(100% - 37.80px - 37.80px\);%0A    border: 3.00px solid #00000;%0A    box-sizing: border-box;%0A    z-index: 2;%0A    pointer-events: none;%0A  }%0A%0A  * {%0A    -webkit-print-color-adjust: exact;%0A    print-color-adjust: exact;%0A  }%0A</style>%0A</head>%0A<body>%0A  <img class="watermark" src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxMSEhUTExIVFhMXFRcWGBYXFRUVFRUXFRUWFxUVFxUYHSggGBolGxUVITEhJSkrLi4uFx8zODMtNygtLisBCgoKBQUFDgUFDisZExkrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrK//AABEIAOMA3gMBIgACEQEDEQH/xAAaAAADAQEBAQAAAAAAAAAAAAAAAwQCAQcF/8QAMxAAAgECBAMGBQQDAQEAAAAAAAECAxEhMUFRBGFxEoGRobHwEyIywdFCUnLhFGLxsoL/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8A9xAAAAAAAAAAABVSulzYDTE6qWbJnOUsvfebhwu78AOy4rZGPjTeXkiiNJLQ2BJ2JvfxD4Et/NlUpJZs4prO+AE3+PLfzYfCnv5lHxF7udc1ugJrzW/qdXEvVfYpTBxTzQCo8QnyGpipcOnyFOlKOXl+AKwJqfE7lEZXyA6AAAAAAAAAAAAAAAABmUksWcq1FEmjFzd3l7yA7Oq5YI3T4bcdCCWQOWiV2B0xUq2V8zNSPajlicptyjbuA3JtxunpcncrxWPzX3GcPO14vNHKdHNNYaMBlVfK77GYq8EveDNRpu1r+QKjha7AU5tWUlhv0G18IvmddO+buFan2sLgcp01aL2M0m23jghuKXMTSfZWKd7+8QHVJpZmkTcQnbHfP7D72XcBypSTJpU5QxWXvMdQm3dPQancBVKunyY4nrcPqvA5Rr6S8fyBSAAAAAAAAAAYq1Oyjs5WV2Swi5u7y94Adp03J3eRVkuQJWEupjaSstL/AHAeTwn2ZNPUZGVlla3oalFPmAOWKS9oxTpWbd89DaiorYVKtfLLd5AOwXIW660u+hPKa/k+eXgZdR7+GAFLqvZLqzDqvePmTABT8Z/uj4M0qr/1ffb1JAAt+NvF+pqNRPJkMZNZM38TdX8n4gV1KaZyzuk8vvzFU6j0d+Tz7mOhUT67agJTtN8x8IJB2Fe+pxyu2...nw+N07C6vawT3zAxxH1P3oLGcR9T96CwAZTeD7n4MWbpa/xYFwqFVJWeDQynkuiEzqxvisUBunU7TwyS9TdSNxUK6bSSHgScN9T6P1KpSSzJaOE33lFXR7MAlFPH0zClluZfER3O0cr7tvxAVWzf8fuTFdZfN1i0SAAAAFKzh0KSRywjLbBlYABmc0ldmFOTxSVuYDQFU6t3a1jlSq79lZ+gDgEuEllK76BSqfLdgOAUpyeKSt1xO0qnavgAwRxOnUeIr4yiu8BFf6mLN1XdswAG6Wv8X6GDdPKXS3iwLaWS6IzB4tW1NxQiUkk3+p+QD2joilFq13np3DmwJZYT7/UrJeLWKfvApi7q4GfhLZGzM5pBCV9u4BdfCz2ZLONm0XVI3TRHUxs+59UAsAAB1DG8d8uo/h53VtVgRp2KHKzU1k8wDicZJe8WUk3ErKS97D4TTV0Bxxs+1yE8Li2/eIyc73S2dzHB6gUCp0vlaXUaLrzsr8wE069sGh1JLFrVmsJLdCeFWL2Ae2TKWDlq8Ebru77K7xFaV3ZZLABYAAAOpRwXN+SEldGOPRW79QHi3RV72GGVNAChjfEXxUrJdRxJxcsUgHcTG8ehzhZXVthzRJSfZlbu/AFM1hha/MxTwdsPV940S1plnlgssMQHE1WGLW+K6j4SujlWF1YCABlRXx1167iwAZRnbB5P3cWAFdKVn2X3GnQjsIpyuuy+5/YdSqfpln6gNjFLBE1L5ZWfvYqMVKalmBswmpaYXMKh/s7bDUrAY+BHbzZypNRWGeiNVaiiIbt80vqeS2A5J9lW/U8+Qg63c4AAB2Mb4AbpLXbLroV0oWVhVGF+iy5vVlAHJSsJhDHpo/XA1Wnz88U+hqC1ve/cBshs5SdiniJ2XXAzwkML7gPJuLhqUnJK+AGKM7o7Uje3LTRk0H2JWeXvEsAVGdm7/0urGipqyeOD8cdEapzvnhiBmtDVZ6rdEs46rL05MvE1Keq71uBGBuUNV4aowADozUsHnoxIAVwqtYS8R5FCppLFeaGRbjljH0ApFVa1sFizDqOX04LcW5qP04vf8Aab7OLxltsIlK+LONgAAB2MW8gBIdTp6Lvf2R2nDbvl9kUQikrIDqVjk5W78DQh4vLqn9vyBqEceeeGT7hpyMUhXE1LK2rATUfalZe92VpCeFp2V9/QeAAAAKr07rmL4ar+l934KSfiKOq7/yBQLVNXu/+f2YoVr4PP1HgZhK6ujRiq+5av8HIVN9/tcAnSvisHuT1Ibqz3WT/AAVp3OsD58qbXTfQyWujs7engLlSesU+mDAmNQm1kbcF/suquZ7C/cvMAqVW+mxg32F+5eZ1QW/gmAs6kOjS2i31wGxpPey2WHmBOqe/gsWPhSvngtt+rGwglkjQHEgcrGak7X3MSjzu/VbYAMlfC2Wp2xyKOzkkrsDlSdlcmpQ7Tu8veBzGb5ehXGNlZAdAAAAAAAAACavQ1Xh+DtGvfB57lAmtQvis/UBxhxtdrNk8Kzjg/wCymE08gFNWwWebefkM+Jv32WCNOKZiVN6PW/MBlwEdl3x1d76q2ngdTdljm/ywHHGjHbd7a+7m3JLvAOytjpidS23e7HJTxS3y+4DAFxd8b2xtYXBXVte94rdgP7WNhUpYtPLwVn6s1Zvl5mlHx31AXClli8PBjVFLJHRFXiEssX5ANqTSzJcZvl6HYUnLF5FUYpYIDkIJKyNAAAAAAAAAAAAAAABmcE8yaVFxxX9lYATQ4ndD4TTyZydNPNCJcNswKjliXtTjv6nY8VugKbY3BoSuJXM1/kR38mBuUL43sDgtccLGP8iO/kzj4mPMBnZWdsTRO+KWiMfHk8l4K4FbYmfEJZYilRk8/MbDh0s8QEuUp9PIdS4dLPF+Q5AAAAAAAAAAAAAAAAAAAAAAAAAAAAAZlBPNIAAxKhHYRKmgADKih1OitvUAAaqUdkbAAAAAAAAAAAAAAAAAAA//2Q==" />%0A  <div class="border"></div>%0A</body>%0A</html>)
+/Creator (Mozilla/5.0 \(X11; Linux x86_64\) AppleWebKit/537.36 \(KHTML, like Gecko\) HeadlessChrome/140.0.0.0 Safari/537.36)
+/Producer (Skia/PDF m140)
+/CreationDate (D:20251111113413+00'00')
+/ModDate (D:20251111113413+00'00')>>
+endobj
+3 0 obj
+<</Length 0>> stream
+
+endstream
+endobj
+2 0 obj
+<</Type /Page
+/Resources <</ProcSet [/PDF /Text /ImageB /ImageC /ImageI]>>
+/MediaBox [0 0 595.91998 842.88]
+/Contents 3 0 R
+/StructParents 0
+/Tabs /S
+/Parent 4 0 R>>
+endobj
+4 0 obj
+<</Type /Pages
+/Count 1
+/Kids [2 0 R]>>
+endobj
+5 0 obj
+<</Type /Catalog
+/Pages 4 0 R
+/ViewerPreferences <</Type /ViewerPreferences
+/DisplayDocTitle true>>>>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000015 00000 n 
+0000004421 00000 n 
+0000004374 00000 n 
+0000004602 00000 n 
+0000004657 00000 n 
+trailer
+<</Size 6
+/Root 5 0 R
+/Info 1 0 R>>
+startxref
+4774
+%%EOF

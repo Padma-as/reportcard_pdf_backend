@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strings"
 "math"
 	"github.com/SebastiaanKlippert/go-wkhtmltopdf"
@@ -58,6 +59,12 @@ type PageDecorationConfig struct {
 	MarginLeft   float64
 	MarginRight  float64
 }
+type StudentFieldConfig struct {
+	Print     bool   // Whether to show this field
+	FontSize  int    // Font size for this field
+	Color     string // Font color (e.g., "#333333" or "red")
+	Index     int    // Order of appearance
+}
 type StudentDetailsConfig struct {
 	IndexOrder       []int               // Order of fields from backend (like [1,7,4,3,...])
 	VisibleFields    map[string]bool     // To control which fields are shown
@@ -80,7 +87,11 @@ type StudentDetailsConfig struct {
 	StudentRollNo   string
     ProfilePicWidth  int
     ProfilePicHeight int
+
+	FieldConfigs map[string]StudentFieldConfig
 }
+
+
 func encodeImageToBase64(path string) string {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -323,22 +334,8 @@ layout = fmt.Sprintf(`
 	return fmt.Sprintf(`<div class="header-container" style="margin-bottom:10px;">%s</div>`, layout)
 }
 func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
-	// Step 1: Map numeric indices to field keys
-	indexFieldMap := map[int]string{
-		1:  "Name",
-		2:  "RollNo",
-		3:  "FatherName",
-		4:  "MotherName",
-		5:  "ClassSection",
-		6:  "AcademicYear",
-		7:  "DateOfBirth",
-		8:  "Attendance",
-		9:  "Address",
-		10: "Email",
-		11: "Mobile",
-	}
 
-	// Step 2: Map field keys to actual values
+
 	fieldValueMap := map[string]string{
 		"Name":         cfg.StudentName,
 		"RollNo":       cfg.StudentRollNo,
@@ -353,50 +350,59 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 		"Mobile":       cfg.Mobile,
 	}
 
-	// Step 3: Render helper
-	renderField := func(label, value string) string {
-		if strings.TrimSpace(value) == "" {
+	// Collect field keys sorted by their configured index
+	type kv struct {
+		Key   string
+		Index int
+	}
+	var sortedFields []kv
+	for k, v := range cfg.FieldConfigs {
+		sortedFields = append(sortedFields, kv{k, v.Index})
+	}
+	sort.Slice(sortedFields, func(i, j int) bool {
+		return sortedFields[i].Index < sortedFields[j].Index
+	})
+
+	// Rendering helper with style
+	renderField := func(label, value string, fc StudentFieldConfig) string {
+		if !fc.Print || strings.TrimSpace(value) == "" {
 			return ""
 		}
-		return fmt.Sprintf(`<div style="margin: 0;"><b>%s:</b> %s</div>`, label, value)
+		style := fmt.Sprintf("font-size:%dpx; color:%s; margin:3px 0;", fc.FontSize, fc.Color)
+		return fmt.Sprintf(`<div style="%s"><b>%s:</b> %s</div>`, style, label, value)
 	}
 
-	// Step 4: Build list of enabled fields based on IndexOrder and VisibleFields
 	var enabledFields []string
-	for _, idx := range cfg.IndexOrder {
-		if fieldKey, ok := indexFieldMap[idx]; ok && cfg.VisibleFields[fieldKey] {
-			if val := fieldValueMap[fieldKey]; val != "" {
-				enabledFields = append(enabledFields, renderField(fieldKey, val))
+	for _, item := range sortedFields {
+		fieldKey := item.Key
+		if val, ok := fieldValueMap[fieldKey]; ok {
+			if fc, exists := cfg.FieldConfigs[fieldKey]; exists {
+				if html := renderField(fieldKey, val, fc); html != "" {
+					enabledFields = append(enabledFields, html)
+				}
 			}
 		}
 	}
 
 	isSingleColumn := strings.ToLower(cfg.DisplayMode) == "single-column"
 
-	// Step 5: Profile Picture
-picHTML := ""
-    if cfg.ShowProfilePic && cfg.ProfilePicBase64 != "" {
-        // Assume cfg has fields like ProfilePicWidth and ProfilePicHeight (e.g., as int/float)
-        picHTML = fmt.Sprintf(`
-            <div style="text-align:center; margin-bottom:10px;">
-                <img src="%s" alt="Student Photo"
-                    style="width:%dpx; height:%dpx; border-radius:50%%; object-fit:cover; border:2px solid #ccc;"/>
-            </div>
-        `, cfg.ProfilePicBase64, cfg.ProfilePicWidth, cfg.ProfilePicHeight)
-    }
+	// --- Profile Picture ---
+	picHTML := ""
+	if cfg.ShowProfilePic && cfg.ProfilePicBase64 != "" {
+		picHTML = fmt.Sprintf(`
+			<div style="text-align:center; margin-bottom:10px;">
+				<img src="%s" alt="Student Photo"
+					style="width:%dpx; height:%dpx; border-radius:50%%; object-fit:cover; border:2px solid #ccc;"/>
+			</div>
+		`, cfg.ProfilePicBase64, cfg.ProfilePicWidth, cfg.ProfilePicHeight)
+	}
 
-	// Step 6: Build details layout
+	// --- Build details layout ---
 	var detailsContainer string
 	if isSingleColumn {
-		// --- Single-column layout ---
 		detailsHTML := strings.Join(enabledFields, "")
-		detailsContainer = fmt.Sprintf(`
-			<div style="display:block; text-align:center; margin:0 auto;">
-				%s
-			</div>
-		`, detailsHTML)
+		detailsContainer = fmt.Sprintf(`<div style="display:block; text-align:center;">%s</div>`, detailsHTML)
 	} else {
-		// --- Two-column layout ---
 		if len(enabledFields) == 0 {
 			detailsContainer = ""
 		} else {
@@ -408,58 +414,51 @@ picHTML := ""
 			}
 
 			detailsContainer = fmt.Sprintf(`
-				<div style="display:inline-block; width:50%%; vertical-align:top; text-align:left;">
-					%s
-				</div>
-				<div style="display:inline-block; width:50%%; vertical-align:top; text-align:left; margin-left:0%%;">
-					%s
+				<div style="width:100%%; overflow:hidden;">
+					<div style="float:left; width:50%%; text-align:left; box-sizing:border-box; padding-right:10px;">%s</div>
+					<div style="float:right; width:50%%; text-align:left; box-sizing:border-box; padding-left:10px;">%s</div>
 				</div>
 			`, leftCol, rightCol)
+			
+		}
+	}
+	// --- Combine picture + details ---
+	var contentHTML string
+	if isSingleColumn {
+		contentHTML = fmt.Sprintf("%s%s", picHTML, detailsContainer)
+	} else {
+		photoWidth := cfg.ProfilePicWidth
+		photoWidthPx := fmt.Sprintf("%dpx", photoWidth)
+		const gap = 40
+		gapPx := fmt.Sprintf("%dpx", gap)
+		detailsWidthCalc := fmt.Sprintf("calc(100%% - %s - %s)", photoWidthPx, gapPx)
+		baseStyle := "box-sizing:border-box; display:inline-block; vertical-align:top;"
+
+		if cfg.ShowProfilePic && cfg.ProfilePicBase64 != "" {
+			if cfg.PicOnRight {
+				picBlock := fmt.Sprintf(`<div style="float:right; width:%s; margin-left:%s;">%s</div>`, photoWidthPx, gapPx, picHTML)
+				detailsBlock := fmt.Sprintf(`<div style="overflow:hidden;">%s</div>`, detailsContainer)
+				contentHTML = picBlock + detailsBlock
+			} else {
+				picBlock := fmt.Sprintf(`<div style="%s width:%s; margin-right:%s;">%s</div>`, baseStyle, photoWidthPx, gapPx, picHTML)
+				detailsBlock := fmt.Sprintf(`<div style="%s width:%s;">%s</div>`, baseStyle, detailsWidthCalc, detailsContainer)
+				contentHTML = picBlock + detailsBlock
+			}
+		} else {
+			contentHTML = detailsContainer
 		}
 	}
 
-	// Step 7: Combine picture + details
-	var contentHTML string
-if isSingleColumn {
-        contentHTML = fmt.Sprintf("%s%s", picHTML, detailsContainer)
-    } else {
-        // Retrieve the width from config, assuming it's an integer
-        photoWidth := cfg.ProfilePicWidth 
-        photoWidthPx := fmt.Sprintf("%dpx", photoWidth) // e.g., "250px"
-        
-        // Calculate the dynamic width string for the details container
-        detailsWidthCalc := fmt.Sprintf("calc(100%% - %dpx)", photoWidth)
-        
-        if cfg.ShowProfilePic && cfg.ProfilePicBase64 != "" {
-            if cfg.PicOnRight {
-                contentHTML = fmt.Sprintf(`
-                    <div style="display:inline-block; width:%s; vertical-align:middle;">%s</div>
-                    <div style="display:inline-block; width:%s; vertical-align:middle; text-align:right; margin-left:10px;">%s</div>
-                `, detailsWidthCalc, detailsContainer, photoWidthPx, picHTML)
-            } else {
-                contentHTML = fmt.Sprintf(`
-                    <div style="display:inline-block; width:%s; vertical-align:middle; text-align:left; margin-right:10px;">%s</div>
-                    <div style="display:inline-block; width:%s; vertical-align:middle;">%s</div>
-                `, photoWidthPx, picHTML, detailsWidthCalc, detailsContainer)
-            }
-        } else {
-            contentHTML = detailsContainer
-        }
-    }
-	// Step 8: Outer wrapper
-	wrapperStyle := "margin:0;"
+	wrapperStyle := "margin:0; width:100%; display:block; overflow:hidden;"
 	if isSingleColumn {
-		wrapperStyle += "text-align:center; display:block;"
+		wrapperStyle += "text-align:center;"
 	} else {
-		wrapperStyle += "white-space:nowrap; text-align:left;"
+		wrapperStyle += "text-align:left;"
 	}
 
-	return fmt.Sprintf(`
-		<div style="%s">
-			%s
-		</div>
-	`, wrapperStyle, contentHTML)
+	return fmt.Sprintf(`<div style="%s">%s</div>`, wrapperStyle, contentHTML)
 }
+
 
 
 
@@ -542,20 +541,20 @@ func generateReportContentHTML(cfg PageDecorationConfig, headerHTML string, stud
 		}
 
 		.content-zone {
-			padding: 0;
+			padding: 15px;
 			box-sizing: border-box;
 		}
 	</style>
 	</head>
-	<body>
+	<body style="width:100%%;>
 		%s
 		%s
 		<div class="main-content-wrapper">
 			<div class="header-zone">%s</div>
+				<hr style="margin:20px 0;/>
 
-			<div class="content-zone">
-				<hr style="margin:20px 0;"/>
-				%s<div  class="std-details" style="margin:0 20px;text-align:left;"></div>
+			<div class="content-zone" style="width:90%%";>
+				%s<div  class="std-details" style="width:100%%;"></div>
 
 				<div style="margin:30px 20px;text-align:left;">
 					<h3>Marks Summary</h3>
@@ -607,38 +606,21 @@ studentCfg := StudentDetailsConfig{
 	ShowProfilePic:   true,
 	PicOnRight:       false,
 	ProfilePicBase64: encodeImageToBase64("./assets/colorwatermark.png"),
-
-	StudentName:   "John Doe",
-	StudentClass:  "10th Standard",
-	StudentRollNo: "25",
-	AcademicYear:  "2024 - 2025",
-	DateOfBirth:   "15-08-2009",
-	FatherName:    "Mr. Richard Doe",
-	MotherName:    "Mrs. Emily Doe",
-	Address:       "123 Main Street, Springfield",
-	Email:         "john.doe@example.com",
-	Mobile:        "9876543210",
-	AttendanceStats: "95%",
-	ProfilePicWidth: 80,
-    ProfilePicHeight:80,
-	DisplayMode: "two-column", // "single-column" or "two-column"
-
-	// Backend-provided field order (using numeric indices)
-	IndexOrder: []int{1, 7, 4, 3, 9, 10, 11, 8, 5, 6, 2},
-
-	// Visibility map (which fields to show)
-	VisibleFields: map[string]bool{
-		"Name":         true,
-		"DateOfBirth":  true,
-		"MotherName":   true,
-		"FatherName":   true,
-		"Address":      true,
-		"Email":        false,
-		"Mobile":       false,
-		"Attendance":   true,
-		"ClassSection": false,
-		"AcademicYear": true,
-		"RollNo":       true,
+	StudentName:    "John Doe",
+	StudentRollNo:  "12345",
+	FatherName:     "Mr. Doe",
+	MotherName:     "Mrs. Doe",
+	StudentClass:   "10-A",
+	AcademicYear:   "2024-25",
+	DisplayMode:    "two-column",
+	ProfilePicWidth:  120,
+	ProfilePicHeight: 120,
+	FieldConfigs: map[string]StudentFieldConfig{
+		"Name":         {Print: true, FontSize: 16, Color: "#000000", Index: 1},
+		"RollNo":       {Print: true, FontSize: 14, Color: "#333333", Index: 2},
+		"FatherName":   {Print: true, FontSize: 13, Color: "#444444", Index: 3},
+		"MotherName":   {Print: false, FontSize: 13, Color: "#444444", Index: 4}, // hidden
+		"ClassSection": {Print: true, FontSize: 14, Color: "#555555", Index: 5},
 	},
 }
 
