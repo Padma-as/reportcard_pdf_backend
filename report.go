@@ -84,6 +84,37 @@ type InstitutionDetailsConfig struct {
 	EmailColor            string
 	EmailFontSize         int
 }
+type StudentDetailsConfig struct {
+	StudentName        string
+	StudentRollNo      string
+	FatherName         string
+	MotherName         string
+	StudentClass       string
+	AcademicYear       string
+	DateOfBirth        string
+	AttendanceStats    string
+	Address            string
+	Email              string
+	Mobile             string
+	PhotoBase64        string
+	PhotoOnRight       bool  // if false, photo will be on left
+	ShowPhoto          bool
+	ShowName           bool
+	ShowRollNo         bool
+	ShowFatherName     bool
+	ShowMotherName     bool
+	ShowClassSection   bool
+	ShowAcademicYear   bool
+	ShowDateOfBirth    bool
+	ShowAttendance     bool
+	ShowAddress        bool
+	ShowEmail          bool
+	ShowMobile         bool
+	FontSize           int
+	FontColor          string
+	DisplayTwoColumn   bool
+}
+
 
 // -----------------------------
 // MAIN
@@ -154,8 +185,37 @@ func main() {
 			EnableTitle:true,
 	EnableSubTitle:true,
 	}
-
-	html := generateHTML(cfg, instCfg,titleCfg)
+studentCfg := StudentDetailsConfig{
+	StudentName:      "John Doe",
+	StudentRollNo:    "45",
+	FatherName:       "Mr. Doe",
+	MotherName:       "Mrs. Doe",
+	StudentClass:     "10-A",
+	AcademicYear:     "2024-25",
+	DateOfBirth:      "01-01-2010",
+	AttendanceStats:  "95%",
+	Address:          "123 Main Street",
+	Email:            "john@example.com",
+	Mobile:           "9999999999",
+	ShowPhoto:        true,
+	PhotoBase64:      toBase64("photo.png"),
+	PhotoOnRight:     false,
+	ShowName:         true,
+	ShowRollNo:       true,
+	ShowFatherName:   true,
+	ShowMotherName:   false,
+	ShowClassSection: true,
+	ShowAcademicYear: true,
+	ShowDateOfBirth:  true,
+	ShowAttendance:   true,
+	ShowAddress:      true,
+	ShowEmail:        true,
+	ShowMobile:       true,
+	FontSize:         14,
+	FontColor:        "#000",
+	DisplayTwoColumn: true,
+}
+	html := generateHTML(cfg, instCfg,titleCfg,studentCfg)
 
 	if err := generatePDF(html, "report.pdf"); err != nil {
 		log.Fatal("❌ PDF generation failed:", err)
@@ -178,10 +238,10 @@ func toBase64(path string) string {
 // -----------------------------
 // HTML GENERATION
 // -----------------------------
-func generateHTML(cfg PageDecorationConfig, instCfg InstitutionDetailsConfig , titleCfg TitleConfig) string {
+func generateHTML(cfg PageDecorationConfig, instCfg InstitutionDetailsConfig , titleCfg TitleConfig,studentCfg StudentDetailsConfig) string {
 	instHTML := generateInstitutionDetailsHTML(instCfg)
 	titleHTML := generateTitleHTML(titleCfg)
-
+studentDetailsHTML := generateStudentDetailsHTML(studentCfg)
 	var bgCSS, wmCSS string
 	if cfg.ShowBackground && cfg.BackgroundImage != "" {
 		bgCSS = fmt.Sprintf(`background-image: url('data:image/png;base64,%s'); background-repeat: no-repeat; background-size: cover; background-position: center;`, cfg.BackgroundImage)
@@ -247,8 +307,8 @@ html, body {
 			<hr style="border:0.5px solid black">
 			 <b>%s</b>
 			
-			<p><strong>Student Name:</strong> John Doe</p>
-			<p><strong>Roll No:</strong> 45</p>
+			<div>%s</div>
+			
 
 			<h3>Academic Performance</h3>
 			<table border="1" width="100%%" cellspacing="0" cellpadding="6">
@@ -270,7 +330,7 @@ html, body {
 `, borderStyle, cfg.MarginTop, cfg.MarginRight, cfg.MarginBottom, cfg.MarginLeft,
 		bgCSS, wmCSS,
 		instHTML,
-		titleHTML)
+		titleHTML,studentDetailsHTML)
 }
 
 // -----------------------------
@@ -372,6 +432,96 @@ func (i InstitutionDetailsConfig) EnableHeaderText() string {
 			i.HeaderColor, i.HeaderFontSize, i.PrintHeader)
 	}
 	return ""
+}
+func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
+	fields := []struct {
+		Label string
+		Value string
+		Show  bool
+	}{
+		{"Name", cfg.StudentName, cfg.ShowName},
+		{"Roll No", cfg.StudentRollNo, cfg.ShowRollNo},
+		{"Father Name", cfg.FatherName, cfg.ShowFatherName},
+		{"Mother Name", cfg.MotherName, cfg.ShowMotherName},
+		{"Class & Section", cfg.StudentClass, cfg.ShowClassSection},
+		{"Academic Year", cfg.AcademicYear, cfg.ShowAcademicYear},
+		{"Date of Birth", cfg.DateOfBirth, cfg.ShowDateOfBirth},
+		{"Attendance", cfg.AttendanceStats, cfg.ShowAttendance},
+		{"Address", cfg.Address, cfg.ShowAddress},
+		{"Email", cfg.Email, cfg.ShowEmail},
+		{"Mobile", cfg.Mobile, cfg.ShowMobile},
+	}
+
+	var leftColumn, rightColumn string
+	var allFieldsHTML string
+
+	// Split into two columns if enabled
+	displayTwo := cfg.DisplayTwoColumn
+	mid := (len(fields) + 1) / 2
+
+	for i, f := range fields {
+		if !f.Show {
+			continue
+		}
+		fieldHTML := fmt.Sprintf(`<p style="margin:3px 0; font-size:%dpx; color:%s;"><strong>%s:</strong> %s</p>`,
+			cfg.FontSize, cfg.FontColor, f.Label, f.Value)
+
+		if displayTwo {
+			if i < mid {
+				leftColumn += fieldHTML
+			} else {
+				rightColumn += fieldHTML
+			}
+		} else {
+			allFieldsHTML += fieldHTML
+		}
+	}
+
+	// Photo HTML
+	photoHTML := ""
+	if cfg.ShowPhoto && cfg.PhotoBase64 != "" {
+		photoHTML = fmt.Sprintf(`<img src="data:image/png;base64,%s" style="height:120px; width:120px; object-fit:cover; margin:5px;">`,
+			cfg.PhotoBase64)
+	}
+
+	// Combine layout
+	if displayTwo {
+		contentHTML := fmt.Sprintf(`
+<div style="display:flex; align-items:flex-start;">
+    %s
+    <div style="flex:1; padding:0 10px;">%s</div>
+    <div style="flex:1; padding:0 10px;">%s</div>
+</div>`,
+			func() string {
+				if cfg.ShowPhoto {
+					if cfg.PhotoOnRight {
+						return "" // photo on right
+					}
+					return photoHTML // photo on left
+				}
+				return ""
+			}(),
+			leftColumn,
+			rightColumn,
+		)
+
+		// Add photo on right if configured
+		if cfg.ShowPhoto && cfg.PhotoOnRight {
+			contentHTML = fmt.Sprintf(`<div style="display:flex; align-items:flex-start;">%s<div>%s</div></div>`, contentHTML, photoHTML)
+		}
+
+		return contentHTML
+	}
+
+	// Single column
+	if cfg.ShowPhoto {
+		if cfg.PhotoOnRight {
+			return fmt.Sprintf(`<div style="display:flex; align-items:flex-start;"><div>%s</div><div>%s</div></div>`, allFieldsHTML, photoHTML)
+		}
+		return fmt.Sprintf(`<div style="display:flex; align-items:flex-start;">%s%s</div>`, photoHTML, allFieldsHTML)
+	}
+
+	return allFieldsHTML
 }
 
 // -----------------------------
