@@ -32,10 +32,18 @@ type PageDecorationConfig struct {
 	RightPadding     string
 	BottomPadding    string
 	LeftPadding      string
-	TitleColor       string
+
+}
+
+type TitleConfig struct {
+    TitleColor       string
 	TitleFontSize    int
 	SubtitleColor    string
 	SubtitleFontSize int
+	TitleText string
+	SubTitleText string
+	EnableTitle bool
+	EnableSubTitle bool
 }
 
 type InstitutionDetailsConfig struct {
@@ -95,10 +103,7 @@ func main() {
 		MarginBottom:     "20px",
 		MarginLeft:       "20px",
 		
-		TitleColor:       "#1a237e",
-		TitleFontSize:    22,
-		SubtitleColor:    "#424242",
-		SubtitleFontSize: 16,
+		
 	}
 
 	instCfg := InstitutionDetailsConfig{
@@ -139,8 +144,18 @@ func main() {
 		EmailColor:            "#444",
 		EmailFontSize:         12,
 	}
+	titleCfg := TitleConfig{
+		TitleColor:       "#1a237e",
+		TitleFontSize:    22,
+		SubtitleColor:    "#424242",
+		SubtitleFontSize: 16,
+		TitleText : "Title",
+		SubTitleText:"subtitle",
+			EnableTitle:true,
+	EnableSubTitle:true,
+	}
 
-	html := generateHTML(cfg, instCfg)
+	html := generateHTML(cfg, instCfg,titleCfg)
 
 	if err := generatePDF(html, "report.pdf"); err != nil {
 		log.Fatal("❌ PDF generation failed:", err)
@@ -163,8 +178,9 @@ func toBase64(path string) string {
 // -----------------------------
 // HTML GENERATION
 // -----------------------------
-func generateHTML(cfg PageDecorationConfig, instCfg InstitutionDetailsConfig) string {
+func generateHTML(cfg PageDecorationConfig, instCfg InstitutionDetailsConfig , titleCfg TitleConfig) string {
 	instHTML := generateInstitutionDetailsHTML(instCfg)
+	titleHTML := generateTitleHTML(titleCfg)
 
 	var bgCSS, wmCSS string
 	if cfg.ShowBackground && cfg.BackgroundImage != "" {
@@ -228,10 +244,9 @@ html, body {
 	<div class="page-wrapper">
 		<div class="content-with-watermark">
 			%s <!-- Institution Header -->
-			<hr>
-			<h1 style="text-align:center; color:%s; font-size:%dpx;">Progress Report</h1>
-			<h3 style="text-align:center; color:%s; font-size:%dpx;">Academic Year 2024-2025</h3>
-			<hr>
+			<hr style="border:0.5px solid black">
+			 <b>%s</b>
+			
 			<p><strong>Student Name:</strong> John Doe</p>
 			<p><strong>Roll No:</strong> 45</p>
 
@@ -255,7 +270,7 @@ html, body {
 `, borderStyle, cfg.MarginTop, cfg.MarginRight, cfg.MarginBottom, cfg.MarginLeft,
 		bgCSS, wmCSS,
 		instHTML,
-		cfg.TitleColor, cfg.TitleFontSize, cfg.SubtitleColor, cfg.SubtitleFontSize)
+		titleHTML)
 }
 
 // -----------------------------
@@ -331,7 +346,26 @@ func generateInstitutionDetailsHTML(cfg InstitutionDetailsConfig) string {
 	return fmt.Sprintf(`<div class="header-section">%s</div>`, headerRowHTML)
 }
 
+func generateTitleHTML(titleCfg TitleConfig) string {
+	titleHTML := ""
+	subtitleHTML := ""
 
+	if titleCfg.EnableTitle {
+		titleHTML = fmt.Sprintf(
+			`<h1 style="text-align:center; color:%s; font-size:%dpx; margin:5px 0;">%s</h1>`,
+			titleCfg.TitleColor, titleCfg.TitleFontSize, titleCfg.TitleText,
+		)
+	}
+
+	if titleCfg.EnableSubTitle {
+		subtitleHTML = fmt.Sprintf(
+			`<h3 style="text-align:center; color:%s; font-size:%dpx; margin:2px 0;">%s</h3>`,
+			titleCfg.SubtitleColor, titleCfg.SubtitleFontSize, titleCfg.SubTitleText,
+		)
+	}
+
+	return titleHTML + subtitleHTML
+}
 func (i InstitutionDetailsConfig) EnableHeaderText() string {
 	if i.EnableHeader {
 		return fmt.Sprintf(`<h2 style="margin:0; color:%s; font-size:%dpx;">%s</h2>`,
