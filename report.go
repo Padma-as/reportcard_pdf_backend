@@ -146,6 +146,7 @@ type ReportConfig struct {
 	PercentageText string
 
 	ShowTestName bool
+	Subjects            []string
 
 }
 
@@ -261,37 +262,50 @@ studentCfg := StudentDetailsConfig{
 
 }
 tests := []Test{
-		{
-			Name: "Test 1",
-			Marks: map[string]int{
-				"Math":  80,
-				"Science": 90,
-			},
-			Max: map[string]int{
-				"Math": 100,
-				"Science": 100,
-			},
-			Min: map[string]int{
-				"Math": 30,
-				"Science": 35,
-			},
-			Remarks: map[string]string{
-				"Math": "Good",
-				"Science": "Excellent",
-			},
-			Grade: map[string]string{
-				"Math": "A",
-				"Science": "A+",
-			},
+	{
+		Name: "Test 1",
+		Marks: map[string]int{
+			"Math": 85, "Science": 90, "English": 88,
 		},
-	}
+		Max: map[string]int{
+			"Math": 100, "Science": 100, "English": 100,
+		},
+		Min: map[string]int{
+			"Math": 35, "Science": 35, "English": 35,
+		},
+		Grade: map[string]string{
+			"Math": "A", "Science": "A+", "English": "A",
+		},
+		Remarks: map[string]string{
+			"Math": "Good", "Science": "Excellent", "English": "Good",
+		},
+	},
+	{
+		Name: "Test 2",
+		Marks: map[string]int{
+			"Math": 78, "Science": 84, "English": 90,
+		},
+		Max: map[string]int{
+			"Math": 100, "Science": 100, "English": 100,
+		},
+		Min: map[string]int{
+			"Math": 35, "Science": 35, "English": 35,
+		},
+		Grade: map[string]string{
+			"Math": "B+", "Science": "A", "English": "A+",
+		},
+		Remarks: map[string]string{
+			"Math": "Fair", "Science": "Good", "English": "Excellent",
+		},
+	},
+}
 
 	acdCfg := ReportConfig{
 		ShowMaxPerSubject:        true,
-		ShowMinPerSubject:        true,
+		ShowMinPerSubject:        false,
 		ShowTotal:      true,
 		ShowPercentage: true,
-		ShowGradePerSubject:      true,
+		ShowGradePerSubject:      false,
 		ShowRemarksPerTest:true,
 	    ShowConductPerTest:true,
 		EnableSlNo:true,
@@ -299,7 +313,7 @@ tests := []Test{
 	EnableOverAllConduct :true,
 	EnableOverAllPercentage :true,
 	EnableGradeForLastTestOnly :true,
-	PrintOnlyGrade :true,
+	PrintOnlyGrade :false,
 	Table1Title : "Part A",
 	Table2Tittle :"Part B",
 	TableTitleFontSize: 16,
@@ -308,6 +322,8 @@ tests := []Test{
 	ConductText :"Conduct",
 	PercentageText: "Percentage",
 	ShowTestName:true,
+	Subjects:            []string{"English", "Maths", "Science"},
+
 	}
 
 	html := generateHTML(cfg, instCfg,titleCfg,studentCfg, acdCfg, tests)
@@ -633,90 +649,151 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 
 func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
 	html := `<html><head><style>
-	table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-	th, td { border: 1px solid #000; padding: 8px; text-align: center; }
-	th { background-color: #eee; }
+	table {
+		border-collapse: collapse;
+		width: 100%;
+		margin-top: 20px;
+	}
+	th, td {
+		border: 1px solid #000;
+		padding: 6px;
+		text-align: center;
+	}
+	th {
+		background-color: #eee;
+	}
 	</style></head><body>`
 
-	for _, test := range tests {
-		html += fmt.Sprintf("<b>%s</b><table><tr>", test.Name)
+	html += "<table>"
 
-		// Header row
-		if cfg.EnableSlNo {
-			html += "<th>Sl</th>"
+	if cfg.ShowTestName {
+	html += "<tr>"
+	if cfg.EnableSlNo {
+		html += `<th rowspan="2">Sl</th>`
+	}
+	html += `<th rowspan="2">Subject</th>`
+
+	for _, test := range tests {
+		colCount := 1 // at least marks
+		if cfg.ShowMaxPerSubject {
+			colCount++
 		}
-		html += "<th>Subject</th>"
+		if cfg.ShowMinPerSubject {
+			colCount++
+		}
+		if cfg.ShowGradePerSubject {
+			colCount++
+		}
+		html += fmt.Sprintf(`<th colspan="%d">%s</th>`, colCount, test.Name)
+	}
+	html += "</tr>"
+
+	// --- Second header row (Max/Min/Obt/Grade) ---
+	html += "<tr>"
+	for range tests {
 		if cfg.ShowMaxPerSubject {
 			html += "<th>Max</th>"
 		}
 		if cfg.ShowMinPerSubject {
 			html += "<th>Min</th>"
 		}
-		html += "<th>Obt.</th>"
+		html += "<th>Obt</th>"
 		if cfg.ShowGradePerSubject {
 			html += "<th>Grade</th>"
 		}
-		html += "</tr>"
+	}
+	html += "</tr>"
+} else {
+	// --- Single header row (no test names) ---
+	html += "<tr>"
+	if cfg.EnableSlNo {
+		html += `<th rowspan="1">Sl</th>`
+	}
+	html += `<th rowspan="1">Subject</th>`
 
-		// Subjects rows
-		i := 1
-		for subject, marks := range test.Marks {
-			html += "<tr>"
+	for range tests {
+		if cfg.ShowMaxPerSubject {
+			html += "<th>Max</th>"
+		}
+		if cfg.ShowMinPerSubject {
+			html += "<th>Min</th>"
+		}
+		html += "<th>Obt</th>"
+		if cfg.ShowGradePerSubject {
+			html += "<th>Grade</th>"
+		}
+	}
+	html += "</tr>"
+}
 
-			if cfg.EnableSlNo {
-				html += fmt.Sprintf("<td>%d</td>", i)
-			}
 
-			html += fmt.Sprintf("<td>%s</td>", subject)
+	for i, subj := range cfg.Subjects {
+		html += "<tr>"
+		if cfg.EnableSlNo {
+			html += fmt.Sprintf("<td>%d</td>", i+1)
+		}
+		html += fmt.Sprintf("<td>%s</td>", subj)
 
+		for _, test := range tests {
 			if cfg.ShowMaxPerSubject {
-				html += fmt.Sprintf("<td>%d</td>", test.Max[subject])
+				html += fmt.Sprintf("<td>%d</td>", test.Max[subj])
 			}
-
 			if cfg.ShowMinPerSubject {
-				html += fmt.Sprintf("<td>%d</td>", test.Min[subject])
+				html += fmt.Sprintf("<td>%d</td>", test.Min[subj])
 			}
-
-			html += fmt.Sprintf("<td>%d</td>", marks)
-
+			html += fmt.Sprintf("<td>%d</td>", test.Marks[subj])
 			if cfg.ShowGradePerSubject {
-				html += fmt.Sprintf("<td>%s</td>", test.Grade[subject])
+				html += "<td>A+</td>"
 			}
-
-			html += "</tr>"
-			i++
 		}
-	total := 0
-			for _, m := range test.Marks {
-				total += m
-			}
-		// Optional total row
-		if cfg.ShowTotal {
-		
-			
-				addFooterRow(&html, cfg, "Total", total)
-
-		}
-
-		// Optional percentage row
-		if cfg.ShowPercentage {
-				percentage := float64(total) / float64(len(test.Marks))
-	addFooterRow(&html, cfg, "Percentage", fmt.Sprintf("%.2f%%", percentage))
-		}
-
-		// Remarks / Conduct rows
-		if cfg.ShowRemarksPerTest {
-addFooterRow(&html, cfg, "Remarks", "Excellent")		}
-		if cfg.ShowConductPerTest {
-		addFooterRow(&html, cfg, "Conduct", "Excellent")
-		}
-
-		html += "</table><br>"
+		html += "</tr>"
 	}
 
-	html += "</body></html>"
+	// =========================
+	// 3️⃣ FOOTER ROWS (TOTAL, %, GRADE, REMARKS, CONDUCT)
+	// =========================
+	addFooterRow := func(label string, value string) {
+		html += "<tr>"
+		if cfg.EnableSlNo {
+			html += fmt.Sprintf(`<td colspan="2"><b>%s</b></td>`, label)
+		} else {
+			html += fmt.Sprintf(`<td><b>%s</b></td>`, label)
+		}
+
+		for range tests {
+			colCount := 1
+			if cfg.ShowMaxPerSubject {
+				colCount++
+			}
+			if cfg.ShowMinPerSubject {
+				colCount++
+			}
+			if cfg.ShowGradePerSubject {
+				colCount++
+			}
+			html += fmt.Sprintf(`<td colspan="%d">%s</td>`, colCount, value)
+		}
+		html += "</tr>"
+	}
+
+	if cfg.ShowTotal {
+		addFooterRow("Total", "450")
+	}
+	if cfg.ShowPercentage {
+		addFooterRow("Percentage", "90%")
+	}
+	if cfg.ShowRemarksPerTest {
+		addFooterRow("Remarks", "Excellent")
+	}
+	if cfg.ShowConductPerTest {
+		addFooterRow("Conduct", "Good")
+	}
+
+	html += "</table></body></html>"
 	return html
 }
+
+
 
 // Helper function to get number of columns for colspan in total/percentage/remarks
 func columnCount(cfg ReportConfig) int {
@@ -735,6 +812,22 @@ func columnCount(cfg ReportConfig) int {
 	}
 	return count
 }
+func countEnabledColumns(cfg ReportConfig) int {
+	count := 1 // Obtained is always shown
+	if cfg.ShowMaxPerSubject {
+		count++
+	}
+	if cfg.ShowMinPerSubject {
+		count++
+	}
+	if cfg.ShowGradePerSubject {
+		count++
+	}
+
+	return count
+}
+
+
 
 // -----------------------------
 // PDF GENERATION
