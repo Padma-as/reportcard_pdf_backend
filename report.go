@@ -367,8 +367,8 @@ studentsData := []StudentReportData{
 }
 
 	acdCfg := ReportConfig{
-		ShowMaxPerSubject:        true,
-		ShowMinPerSubject:        true,
+		ShowMaxPerSubject:        false,
+		ShowMinPerSubject:        false,
 		ShowTotal:                true,
 		ShowPercentage:           true,
 		ShowGradePerSubject:      true,
@@ -388,7 +388,7 @@ studentsData := []StudentReportData{
 		RemarksText:                "Remarks",
 		ConductText:                "Conduct",
 		PercentageText:             "Percentage",
-		ShowTestName:               true,
+		ShowTestName:               false,
 		Subjects:                   []string{"English", "Math", "Science"},
 	}
 
@@ -783,11 +783,15 @@ if cfg.EnableSlNo {
 	}
 
 	// --- Header ---
-	html += "<tr>"
-	if cfg.EnableSlNo {
-		html += `<th rowspan="2">Sl</th>`
-	}
-	html += `<th rowspan="2" class="subject">Subject</th>`
+rowSpan := 1
+if cfg.ShowTestName {
+	rowSpan = 2
+}
+
+if cfg.EnableSlNo {
+	html += fmt.Sprintf(`<th rowspan="%d">Sl</th>`, rowSpan)
+}
+html += fmt.Sprintf(`<th rowspan="%d" class="subject">Subject</th>`, rowSpan)
 
 	if cfg.ShowTestName {
 		for _, test := range tests {
