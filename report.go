@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-
+"sort"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 )
@@ -112,7 +112,10 @@ type StudentDetailsConfig struct {
 	ShowMobile         bool
 	FontSize           int
 	FontColor          string
+
 	DisplayTwoColumn   bool
+	StudentPhotoX int
+	StudentPhotoY int
 }
 
 
@@ -198,12 +201,12 @@ studentCfg := StudentDetailsConfig{
 	Email:            "john@example.com",
 	Mobile:           "9999999999",
 	ShowPhoto:        true,
-	PhotoBase64:      toBase64("photo.png"),
+	PhotoBase64:      toBase64("./assets/colorwatermark.png"),
 	PhotoOnRight:     false,
 	ShowName:         true,
 	ShowRollNo:       true,
 	ShowFatherName:   true,
-	ShowMotherName:   false,
+	ShowMotherName:   true,
 	ShowClassSection: true,
 	ShowAcademicYear: true,
 	ShowDateOfBirth:  true,
@@ -214,6 +217,10 @@ studentCfg := StudentDetailsConfig{
 	FontSize:         14,
 	FontColor:        "#000",
 	DisplayTwoColumn: true,
+	StudentPhotoX :80,
+	StudentPhotoY:80,
+	
+
 }
 	html := generateHTML(cfg, instCfg,titleCfg,studentCfg)
 
@@ -434,28 +441,34 @@ func (i InstitutionDetailsConfig) EnableHeaderText() string {
 	return ""
 }
 func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
+	// Convert all values to string safely
 	fields := []struct {
+		Index int
 		Label string
 		Value string
 		Show  bool
 	}{
-		{"Name", cfg.StudentName, cfg.ShowName},
-		{"Roll No", cfg.StudentRollNo, cfg.ShowRollNo},
-		{"Father Name", cfg.FatherName, cfg.ShowFatherName},
-		{"Mother Name", cfg.MotherName, cfg.ShowMotherName},
-		{"Class & Section", cfg.StudentClass, cfg.ShowClassSection},
-		{"Academic Year", cfg.AcademicYear, cfg.ShowAcademicYear},
-		{"Date of Birth", cfg.DateOfBirth, cfg.ShowDateOfBirth},
-		{"Attendance", cfg.AttendanceStats, cfg.ShowAttendance},
-		{"Address", cfg.Address, cfg.ShowAddress},
-		{"Email", cfg.Email, cfg.ShowEmail},
-		{"Mobile", cfg.Mobile, cfg.ShowMobile},
+		{4, "Name", cfg.StudentName, cfg.ShowName},
+		{2, "Roll No", fmt.Sprintf("%v", cfg.StudentRollNo), cfg.ShowRollNo},
+		{3, "Father Name", cfg.FatherName, cfg.ShowFatherName},
+		{1, "Mother Name", cfg.MotherName, cfg.ShowMotherName},
+		{5, "Class & Section", cfg.StudentClass, cfg.ShowClassSection},
+		{6, "Academic Year", cfg.AcademicYear, cfg.ShowAcademicYear},
+		{7, "Date of Birth", cfg.DateOfBirth, cfg.ShowDateOfBirth},
+		{8, "Attendance", fmt.Sprintf("%v", cfg.AttendanceStats), cfg.ShowAttendance},
+		{9, "Address", cfg.Address, cfg.ShowAddress},
+		{10, "Email", cfg.Email, cfg.ShowEmail},
+		{11, "Mobile", fmt.Sprintf("%v", cfg.Mobile), cfg.ShowMobile},
 	}
 
+	// Sort fields by Index
+	sort.Slice(fields, func(i, j int) bool {
+		return fields[i].Index < fields[j].Index
+	})
+
+	// Generate HTML columns
 	var leftColumn, rightColumn string
 	var allFieldsHTML string
-
-	// Split into two columns if enabled
 	displayTwo := cfg.DisplayTwoColumn
 	mid := (len(fields) + 1) / 2
 
@@ -463,9 +476,20 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 		if !f.Show {
 			continue
 		}
-		fieldHTML := fmt.Sprintf(`<p style="margin:3px 0; font-size:%dpx; color:%s;"><strong>%s:</strong> %s</p>`,
-			cfg.FontSize, cfg.FontColor, f.Label, f.Value)
 
+		value := f.Value
+		if value == "" {
+			value = "-"
+		}
+
+    fieldHTML := fmt.Sprintf(
+        `<div style="display:grid; grid-template-columns:1fr 0.01fr 1fr; gap:5px; margin:2px 0; font-size:%dpx; color:%s;">
+            <div style="font-weight:bold;">%s</div>
+			<span>:</span>
+            <div>%s</div>
+        </div>`,
+        cfg.FontSize, cfg.FontColor, f.Label, value,
+    )
 		if displayTwo {
 			if i < mid {
 				leftColumn += fieldHTML
@@ -480,49 +504,56 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 	// Photo HTML
 	photoHTML := ""
 	if cfg.ShowPhoto && cfg.PhotoBase64 != "" {
-		photoHTML = fmt.Sprintf(`<img src="data:image/png;base64,%s" style="height:120px; width:120px; object-fit:cover; margin:5px;">`,
-			cfg.PhotoBase64)
-	}
-
-	// Combine layout
-	if displayTwo {
-		contentHTML := fmt.Sprintf(`
-<div style="display:flex; align-items:flex-start;">
-    %s
-    <div style="flex:1; padding:0 10px;">%s</div>
-    <div style="flex:1; padding:0 10px;">%s</div>
-</div>`,
-			func() string {
-				if cfg.ShowPhoto {
-					if cfg.PhotoOnRight {
-						return "" // photo on right
-					}
-					return photoHTML // photo on left
-				}
-				return ""
-			}(),
-			leftColumn,
-			rightColumn,
+		photoHTML = fmt.Sprintf(
+			`<img src="data:image/png;base64,%s" style="height:%dpx; width:%dpx; object-fit:cover; margin-bottom:10px;">`,
+			cfg.PhotoBase64, cfg.StudentPhotoY, cfg.StudentPhotoX,
 		)
+	}
+	detailsWidth := fmt.Sprintf("calc(100%% - %dpx)", cfg.StudentPhotoX)
 
-		// Add photo on right if configured
+	// Two-column layout
+	if displayTwo {
+		// Left content includes photo if photo is on left
+		leftSideHTML := ""
+		if cfg.ShowPhoto && !cfg.PhotoOnRight {
+			leftSideHTML = photoHTML
+		}
+		leftSideHTML += fmt.Sprintf(`<div style="flex:1;">%s</div>`, leftColumn)
+		rightSideHTML := fmt.Sprintf(`<div style="flex:1;">%s</div>`, rightColumn)
+
+		contentHTML := fmt.Sprintf(`
+			<div style="display:flex; align-items:flex-start; width:%s;">
+				%s
+				%s
+			</div>
+		`,detailsWidth, leftSideHTML, rightSideHTML)
+
+		// Photo on right
 		if cfg.ShowPhoto && cfg.PhotoOnRight {
-			contentHTML = fmt.Sprintf(`<div style="display:flex; align-items:flex-start;">%s<div>%s</div></div>`, contentHTML, photoHTML)
+			contentHTML = fmt.Sprintf(`
+				<div style="display:flex; align-items:flex-start;width:%s;">
+					%s
+					<div>%s</div>
+				</div>
+			`,detailsWidth, contentHTML, photoHTML)
 		}
 
 		return contentHTML
 	}
 
-	// Single column
+	// Single-column layout
 	if cfg.ShowPhoto {
-		if cfg.PhotoOnRight {
-			return fmt.Sprintf(`<div style="display:flex; align-items:flex-start;"><div>%s</div><div>%s</div></div>`, allFieldsHTML, photoHTML)
-		}
-		return fmt.Sprintf(`<div style="display:flex; align-items:flex-start;">%s%s</div>`, photoHTML, allFieldsHTML)
+		return fmt.Sprintf(`
+			<div style="display:flex; flex-direction:column; align-items:center;">
+				<div>%s</div>
+				<div style="align-self:flex-start; margin-top:10px;">%s</div>
+			</div>
+		`, photoHTML, allFieldsHTML)
 	}
 
 	return allFieldsHTML
 }
+
 
 // -----------------------------
 // PDF GENERATION
