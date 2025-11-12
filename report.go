@@ -374,7 +374,7 @@ studentsData := []StudentReportData{
 		ShowGradePerSubject:      true,
 		ShowRemarksPerTest:       true,
 		ShowConductPerTest:       true,
-		EnableSlNo:               false,
+		EnableSlNo:               true,
 		PrintRemarks:     "over-all",
 		PrintConduct:     "over-all",
 		EnableGradeForLastTestOnly: true,
@@ -737,168 +737,128 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 	return allFieldsHTML
 }
 
-  func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
-		fontSize :=  cfg.TableDataFontSize
+func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
+	fontSize := cfg.TableDataFontSize
 	if fontSize == 0 {
-		fontSize = 12 // default size if not set
+		fontSize = 12
 	}
-	html := fmt.Sprintf(`<html><head><style>
-	table {
-		border-collapse: collapse;
-		width: 100%%;
-		margin-top: 20px;
-				font-size: %dpx;
 
-	}
-	th, td {
-		border: 1px solid #000;
-		padding: 2px;
-		text-align: center;
-	}
-		th .subject {
-  text-align: left !important;
-  padding-left: 8px;
+	SlcolSpan := 1
+if cfg.EnableSlNo {
+    SlcolSpan = 2
 }
-	th {
-		background-color: #eee;
-	}
-	</style></head><body>`,fontSize)
 
-	html += "<table>"
+	html := fmt.Sprintf(`<html><head><style>
+		table { border-collapse: collapse; width: 100%%; margin-top: 20px; font-size: %dpx; }
+		th, td { border: 1px solid #000; padding: 2px; text-align: center; }
+		th.subject { text-align: left !important; padding-left: 8px; }
+		th { background-color: #eee; }
+	</style></head><body><table>`, fontSize)
 
-	// ---------------- Header ----------------
-	if cfg.ShowTestName {
-		html += "<tr>"
-		if cfg.EnableSlNo {
-			html += `<th rowspan="2">Sl</th>`
-		}
-		html += `<th rowspan="2" >Subject</th>`
-
-		for _, test := range tests {
-			colCount := 0
-			if !cfg.PrintOnlyGrade {
-				if cfg.ShowMaxPerSubject {
-					colCount++
-				}
-				if cfg.ShowMinPerSubject {
-					colCount++
-				}
-				colCount++ // Obt column
-			}
-			if cfg.ShowGradePerSubject {
+	// --- Helper: count number of columns per test ---
+	getColCount := func() int {
+		colCount := 0
+		if !cfg.PrintOnlyGrade {
+			if cfg.ShowMaxPerSubject {
 				colCount++
 			}
-
-			html += fmt.Sprintf(`<th colspan="%d">%s</th>`, colCount, test.Name)
-		}
-		html += "</tr>"
-
-		// --- Second header row ---
-		html += "<tr>"
-		for range tests {
-			if !cfg.PrintOnlyGrade {
-				if cfg.ShowMaxPerSubject {
-					html += "<th>Max</th>"
-				}
-				if cfg.ShowMinPerSubject {
-					html += "<th>Min</th>"
-				}
-				html += "<th>Obt</th>"
+			if cfg.ShowMinPerSubject {
+				colCount++
 			}
-			if cfg.ShowGradePerSubject {
-				html += "<th>Grade</th>"
-			}
+			colCount++ // Obt column
 		}
-		html += "</tr>"
-
-	} else {
-		// --- Single header row (no test names) ---
-		html += "<tr>"
-		if cfg.EnableSlNo {
-			html += `<th rowspan="1">Sl</th>`
+		if cfg.ShowGradePerSubject {
+			colCount++
 		}
-		html += `<th rowspan="1" class="subject" >Subject</th>`
-
-		for range tests {
-			if !cfg.PrintOnlyGrade {
-				if cfg.ShowMaxPerSubject {
-					html += "<th>Max</th>"
-				}
-				if cfg.ShowMinPerSubject {
-					html += "<th>Min</th>"
-				}
-				html += "<th>Obt</th>"
-			}
-			if cfg.ShowGradePerSubject {
-				html += "<th>Grade</th>"
-			}
-		}
-		html += "</tr>"
-	
-		
+		return colCount
 	}
-	
+
+	// --- Helper: total columns across tests ---
+	totalCols := func() int {
+		base := 1
+		if cfg.EnableSlNo {
+			base = 2
+		}
+		return base + len(tests)*getColCount()
+	}
+
+	// --- Header ---
+	html += "<tr>"
+	if cfg.EnableSlNo {
+		html += `<th rowspan="2">Sl</th>`
+	}
+	html += `<th rowspan="2" class="subject">Subject</th>`
+
+	if cfg.ShowTestName {
+		for _, test := range tests {
+			html += fmt.Sprintf(`<th colspan="%d">%s</th>`, getColCount(), test.Name)
+		}
+		html += "</tr><tr>"
+		for range tests {
+			if !cfg.PrintOnlyGrade {
+				if cfg.ShowMaxPerSubject {
+					html += "<th>Max</th>"
+				}
+				if cfg.ShowMinPerSubject {
+					html += "<th>Min</th>"
+				}
+				html += "<th>Obt</th>"
+			}
+			if cfg.ShowGradePerSubject {
+				html += "<th>Grade</th>"
+			}
+		}
+	} else {
+		for range tests {
+			if !cfg.PrintOnlyGrade {
+				if cfg.ShowMaxPerSubject {
+					html += "<th>Max</th>"
+				}
+				if cfg.ShowMinPerSubject {
+					html += "<th>Min</th>"
+				}
+				html += "<th>Obt</th>"
+			}
+			if cfg.ShowGradePerSubject {
+				html += "<th>Grade</th>"
+			}
+		}
+	}
+	html += "</tr>"
+
+	// --- Optional Max/Min per Test ---
+	addSummaryRow := func(label string, perTestData func(test Test) int) {
+		html += "<tr>"
+		
+html += fmt.Sprintf(`<td colspan="%d"><b>%s</b></td>`, SlcolSpan, label)
+		for _, test := range tests {
+			total := perTestData(test)
+			html += fmt.Sprintf(`<td colspan="%d">%d</td>`, getColCount(), total)
+		}
+		html += "</tr>"
+	}
+
 	if cfg.ShowMaxPerTest {
-			html += "<tr>"
-			if cfg.EnableSlNo {
-				html += "<td></td>"
+		addSummaryRow("Max Marks", func(t Test) int {
+			sum := 0
+			for _, subj := range cfg.Subjects {
+				sum += t.Max[subj]
 			}
-			html += "<td><b>Max Marks</b></td>"
-			for _, test := range tests {
-				colCount := 0
-				if !cfg.PrintOnlyGrade {
-					if cfg.ShowMaxPerSubject {
-						colCount++
-					}
-					if cfg.ShowMinPerSubject {
-						colCount++
-					}
-					colCount++
-				}
-				if cfg.ShowGradePerSubject {
-					colCount++
-				}
-				totalMax := 0
-				for _, subj := range cfg.Subjects {
-					if val, ok := test.Max[subj]; ok {
-						totalMax += val
-					}
-				}
-				html += fmt.Sprintf(`<td colspan="%d">%d</td>`, colCount, totalMax)
+			return sum
+		})
+	}
+
+	if cfg.ShowMinPerTest {
+		addSummaryRow("Min Marks", func(t Test) int {
+			sum := 0
+			for _, subj := range cfg.Subjects {
+				sum += t.Min[subj]
 			}
-			html += "</tr>"
-		}
-		if cfg.ShowMinPerTest {
-			html += "<tr>"
-			if cfg.EnableSlNo {
-				html += "<td></td>"
-			}
-			html += "<td><b>Min Marks</b></td>"
-			for _, test := range tests {
-				colCount := 0
-				if !cfg.PrintOnlyGrade {
-					if cfg.ShowMaxPerSubject {
-						colCount++
-					}
-					if cfg.ShowMinPerSubject {
-						colCount++
-					}
-					colCount++
-				}
-				if cfg.ShowGradePerSubject {
-					colCount++
-				}
-				totalMax := 0
-				for _, subj := range cfg.Subjects {
-					if val, ok := test.Max[subj]; ok {
-						totalMax += val
-					}
-				}
-				html += fmt.Sprintf(`<td colspan="%d">%d</td>`, colCount, totalMax)
-			}
-			html += "</tr>"
-		}
-	// ---------------- Body ----------------
+			return sum
+		})
+	}
+
+	// --- Body ---
 	for i, subj := range cfg.Subjects {
 		html += "<tr>"
 		if cfg.EnableSlNo {
@@ -915,7 +875,7 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 					html += fmt.Sprintf("<td>%d</td>", test.Min[subj])
 				}
 				html += fmt.Sprintf("<td>%d</td>", test.Marks[subj])
-			} 
+			}
 			if cfg.ShowGradePerSubject {
 				html += "<td>A+</td>"
 			}
@@ -923,85 +883,45 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 		html += "</tr>"
 	}
 
-	// ---------------- Footer (Total, Remarks, etc.) ----------------
-addFooterRow := func(label string, value string) {
-	colSpan := 1
-	if cfg.EnableSlNo {
-		colSpan = 2
-	}
-
-	// Count total test-based columns
-	testColCount := 0
-	for range tests {
-		if !cfg.PrintOnlyGrade {
-			if cfg.ShowMaxPerSubject {
-				testColCount++
-			}
-			if cfg.ShowMinPerSubject {
-				testColCount++
-			}
-			testColCount++ // Obtained
+	// --- Footer Rows ---
+	addFooterRow := func(label, value string) {
+		// Handle "over-all"
+		if (label == cfg.RemarksText && cfg.PrintRemarks == "over-all") ||
+			(label == cfg.ConductText && cfg.PrintConduct == "over-all") {
+			html += fmt.Sprintf(`<tr><td colspan="%d"><b>%s</b> </td><td colspan="%d">%s</td></tr>`, SlcolSpan, label,totalCols, value)
+			return
 		}
-		if cfg.ShowGradePerSubject {
-			testColCount++
-		}
-	}
 
-
-	// --- Handle "over-all" case for Conduct or Remarks ---
-	if (label == cfg.RemarksText && cfg.PrintRemarks == "over-all") ||
-		(label == cfg.ConductText && cfg.PrintConduct == "over-all") {
 		html += "<tr>"
-		html += fmt.Sprintf(`<td colspan="%d"><b>%s<b><td colspan="%d"> %s</td>`, colSpan, label,testColCount,value)
+		if cfg.EnableSlNo {
+			html += fmt.Sprintf(`<td colspan="%d"><b>%s</b></td>`,SlcolSpan, label)
+		} else {
+			html += fmt.Sprintf(`<td><b>%s</b></td>`, label)
+		}
+
+		for range tests {
+			html += fmt.Sprintf(`<td colspan="%d">%s</td>`, getColCount(), value)
+		}
 		html += "</tr>"
-		return
 	}
 
-	// --- Default per-test case ---
-	html += "<tr>"
-	if cfg.EnableSlNo {
-		html += fmt.Sprintf(`<td colspan="2"><b>%s</b></td>`, label)
-	} else {
-		html += fmt.Sprintf(`<td><b>%s</b></td>`, label)
+	if cfg.ShowTotal {
+		addFooterRow("Total", "450")
 	}
-
-	for range tests {
-		colCount := 0
-		if !cfg.PrintOnlyGrade {
-			if cfg.ShowMaxPerSubject {
-				colCount++
-			}
-			if cfg.ShowMinPerSubject {
-				colCount++
-			}
-			colCount++ // Obt column
-		}
-		if cfg.ShowGradePerSubject {
-			colCount++
-		}
-		html += fmt.Sprintf(`<td colspan="%d">%s</td>`, colCount, value)
+	if cfg.ShowPercentage {
+		addFooterRow(cfg.PercentageText, "90%")
 	}
-	html += "</tr>"
-}
-
-// --- Footer Rows ---
-if cfg.ShowTotal {
-	addFooterRow("Total", "450")
-}
-if cfg.ShowPercentage {
-	addFooterRow(cfg.PercentageText, "90%")
-}
-if cfg.ShowRemarksPerTest {
-	addFooterRow(cfg.RemarksText, "Excellent")
-}
-if cfg.ShowConductPerTest {
-	addFooterRow(cfg.ConductText, "Good")
-}
-
+	if cfg.ShowRemarksPerTest {
+		addFooterRow(cfg.RemarksText, "Excellent")
+	}
+	if cfg.ShowConductPerTest {
+		addFooterRow(cfg.ConductText, "Good")
+	}
 
 	html += "</table></body></html>"
 	return html
 }
+
 
 func generateStudentChartHTML(tests []Test) string {
 	if len(tests) == 0 {
