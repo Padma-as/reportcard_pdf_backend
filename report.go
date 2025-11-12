@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 "sort"
+"strings"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 )
@@ -34,7 +35,11 @@ type PageDecorationConfig struct {
 	LeftPadding      string
 
 }
+type StudentReportData struct {
+	StudentCfg     StudentDetailsConfig
+	Tests          []Test
 
+}
 type TitleConfig struct {
     TitleColor       string
 	TitleFontSize    int
@@ -132,9 +137,8 @@ type ReportConfig struct {
 	ShowRemarksPerTest bool
 	ShowConductPerTest bool
 	
-	EnableOverAllRemarks bool
-	EnableOverAllConduct bool
-	EnableOverAllPercentage bool
+	PrintRemarks string
+	PrintConduct string
 	EnableGradeForLastTestOnly bool
 	PrintOnlyGrade bool
 	Table1Title string
@@ -144,6 +148,7 @@ type ReportConfig struct {
 	RemarksText string
 	ConductText string
 	PercentageText string
+	Fontsize int
 
 	ShowTestName bool
 	Subjects            []string
@@ -163,175 +168,237 @@ type Test struct {
 // -----------------------------
 func main() {
 	cfg := PageDecorationConfig{
-		ShowBackground:   true,
-		BackgroundImage:  toBase64("./assets/background.png"),
-		ShowWatermark:    true,
-		WatermarkImage:   toBase64("./assets/watermark.jpeg"),
-		ShowBorder:       true,
-		BorderColor:      "#333",
-		BorderWidth:      2,
-		BorderType:       "solid",
-		MarginTop:        "20px",
-		MarginRight:      "20px",
-		MarginBottom:     "20px",
-		MarginLeft:       "20px",
-		
-		
+		ShowBackground:  true,
+		BackgroundImage: toBase64("./assets/background.png"),
+		ShowWatermark:   true,
+		WatermarkImage:  toBase64("./assets/watermark.jpeg"),
+		ShowBorder:      true,
+		BorderColor:     "#333",
+		BorderWidth:     2,
+		BorderType:      "solid",
+		MarginTop:       "20px",
+		MarginRight:     "20px",
+		MarginBottom:    "20px",
+		MarginLeft:      "20px",
 	}
 
 	instCfg := InstitutionDetailsConfig{
-		PrintPhoto1Config:     true,
-		PrintPhoto2Config:     true,
-		PrintInstLogo:         true,
+		PrintPhoto1Config:    true,
+		PrintPhoto2Config:    true,
+		PrintInstLogo:        true,
 		HeaderName:           "EDUATE PRIVATE LIMITED",
-		EnableHeader:          true,
-		Photo1Base64:          toBase64("./assets/Arcadis_Logo.png"),
-		Photo2Base64:          toBase64("./assets/Arcadis_Logo.png"),
-		InstLogoBase64:        toBase64("./assets/Arcadis_Logo.png"),
-		HeaderColor:           "#1A237E",
-		HeaderFontSize:        20,
-		PrintCustName:         true,
-		CustName:              "Eduate ERP System",
-		CustomerNameColor:     "#000",
-		CustomerNameFontSize:  16,
-		PrintInstName:         true,
-		InstName:              "Eduate International School",
-		InstNameColor:         "#111",
-		InstNameFontSize:      18,
-		EnableAffiliated:      true,
-		PrintAffiliatedTo:     "Affiliated to CBSE",
-		AffiliatedColor:       "#444",
-		AffiliatedFontSize:    14,
-		PrintInstAddress:      true,
-		InstAddress:           "123 Eduate Street",
-		InstPlace:             "Bangalore",
-		InstPin:               "560001",
-		AddressColor:          "#555",
-		AddressFontSize:       12,
-		PrintInstWebsite:      true,
-		InstWebsite:           "www.eduate.com",
-		WebsiteColor:          "#444",
-		WebsiteFontSize:       12,
-		PrintInstEmail:        true,
-		InstEmail:             "info@eduate.com",
-		EmailColor:            "#444",
-		EmailFontSize:         12,
+		EnableHeader:         true,
+		Photo1Base64:         toBase64("./assets/Arcadis_Logo.png"),
+		Photo2Base64:         toBase64("./assets/Arcadis_Logo.png"),
+		InstLogoBase64:       toBase64("./assets/Arcadis_Logo.png"),
+		HeaderColor:          "#1A237E",
+		HeaderFontSize:       20,
+		PrintCustName:        true,
+		CustName:             "Eduate ERP System",
+		CustomerNameColor:    "#000",
+		CustomerNameFontSize: 16,
+		PrintInstName:        true,
+		InstName:             "Eduate International School",
+		InstNameColor:        "#111",
+		InstNameFontSize:     18,
+		EnableAffiliated:     true,
+		PrintAffiliatedTo:    "Affiliated to CBSE",
+		AffiliatedColor:      "#444",
+		AffiliatedFontSize:   14,
+		PrintInstAddress:     true,
+		InstAddress:          "123 Eduate Street",
+		InstPlace:            "Bangalore",
+		InstPin:              "560001",
+		AddressColor:         "#555",
+		AddressFontSize:      12,
+		PrintInstWebsite:     true,
+		InstWebsite:          "www.eduate.com",
+		WebsiteColor:         "#444",
+		WebsiteFontSize:      12,
+		PrintInstEmail:       true,
+		InstEmail:            "info@eduate.com",
+		EmailColor:           "#444",
+		EmailFontSize:        12,
 	}
+
 	titleCfg := TitleConfig{
 		TitleColor:       "#1a237e",
 		TitleFontSize:    22,
 		SubtitleColor:    "#424242",
 		SubtitleFontSize: 16,
-		TitleText : "Title",
-		SubTitleText:"subtitle",
-			EnableTitle:true,
-	EnableSubTitle:true,
+		TitleText:        "Title",
+		SubTitleText:     "subtitle",
+		EnableTitle:      true,
+		EnableSubTitle:   true,
 	}
-studentCfg := StudentDetailsConfig{
-	StudentName:      "John Doe",
-	StudentRollNo:    "45",
-	FatherName:       "Mr. Doe",
-	MotherName:       "Mrs. Doe",
-	StudentClass:     "10-A",
-	AcademicYear:     "2024-25",
-	DateOfBirth:      "01-01-2010",
-	AttendanceStats:  "95%",
-	Address:          "123 Main Street",
-	Email:            "john@example.com",
-	Mobile:           "9999999999",
-	ShowPhoto:        true,
-	PhotoBase64:      toBase64("./assets/colorwatermark.png"),
-	PhotoOnRight:     false,
-	ShowName:         true,
-	ShowRollNo:       true,
-	ShowFatherName:   true,
-	ShowMotherName:   true,
-	ShowClassSection: true,
-	ShowAcademicYear: true,
-	ShowDateOfBirth:  true,
-	ShowAttendance:   true,
-	ShowAddress:      true,
-	ShowEmail:        true,
-	ShowMobile:       true,
-	FontSize:         14,
-	FontColor:        "#000",
-	DisplayTwoColumn: true,
-	StudentPhotoX :80,
-	StudentPhotoY:80,
-	
 
-}
-tests := []Test{
+	// ✅ Base Student Config
+	baseStudentCfg := StudentDetailsConfig{
+		ShowName:         true,
+		ShowRollNo:       true,
+		ShowFatherName:   true,
+		ShowMotherName:   true,
+		ShowClassSection: true,
+		ShowAcademicYear: true,
+		ShowDateOfBirth:  true,
+		ShowAttendance:   true,
+		ShowAddress:      true,
+		ShowEmail:        true,
+		ShowMobile:       true,
+		ShowPhoto:        true,
+		DisplayTwoColumn: true,
+		FontSize:         14,
+		FontColor:        "#000",
+		PhotoBase64:      toBase64("./assets/colorwatermark.png"),
+		StudentPhotoX:    80,
+		StudentPhotoY:    80,
+	}
+
+	// ✅ Students
+studentsData := []StudentReportData{
 	{
-		Name: "Test 1",
-		Marks: map[string]int{
-			"Math": 85, "Science": 90, "English": 88,
-		},
-		Max: map[string]int{
-			"Math": 100, "Science": 100, "English": 100,
-		},
-		Min: map[string]int{
-			"Math": 35, "Science": 35, "English": 35,
-		},
-		Grade: map[string]string{
-			"Math": "A", "Science": "A+", "English": "A",
-		},
-		Remarks: map[string]string{
-			"Math": "Good", "Science": "Excellent", "English": "Good",
+		StudentCfg: newStudent(
+			baseStudentCfg,
+			"John Doe", "45", "Mr. David Doe", "Mrs. Sarah Doe",
+			"10-A", "2024-25", "01-01-2010", "95%",
+			"123 Main Street, Bangalore", "john@example.com", "9999999999", true,
+		),
+		Tests: []Test{
+			{
+				Name: "Test 1",
+				Marks: map[string]int{
+					"Math": 85, "Science": 90, "English": 88,
+				},
+				Max: map[string]int{
+					"Math": 100, "Science": 100, "English": 100,
+				},
+				Grade: map[string]string{
+					"Math": "A", "Science": "A+", "English": "A",
+				},
+				Remarks: map[string]string{
+					"Math": "Good", "Science": "Excellent", "English": "Good",
+				},
+			},
+			{
+				Name: "Test 2",
+				Marks: map[string]int{
+					"Math": 78, "Science": 84, "English": 90,
+				},
+				Max: map[string]int{
+					"Math": 100, "Science": 100, "English": 100,
+				},
+				Grade: map[string]string{
+					"Math": "B+", "Science": "A", "English": "A+",
+				},
+				Remarks: map[string]string{
+					"Math": "Fair", "Science": "Good", "English": "Excellent",
+				},
+			},	{
+				Name: "Test 3",
+				Marks: map[string]int{
+					"Math": 78, "Science": 84, "English": 90,
+				},
+				Max: map[string]int{
+					"Math": 100, "Science": 100, "English": 100,
+				},
+				Grade: map[string]string{
+					"Math": "B+", "Science": "A", "English": "A+",
+				},
+				Remarks: map[string]string{
+					"Math": "Fair", "Science": "Good", "English": "Excellent",
+				},
+			},
 		},
 	},
 	{
-		Name: "Test 2",
-		Marks: map[string]int{
-			"Math": 78, "Science": 84, "English": 90,
-		},
-		Max: map[string]int{
-			"Math": 100, "Science": 100, "English": 100,
-		},
-		Min: map[string]int{
-			"Math": 35, "Science": 35, "English": 35,
-		},
-		Grade: map[string]string{
-			"Math": "B+", "Science": "A", "English": "A+",
-		},
-		Remarks: map[string]string{
-			"Math": "Fair", "Science": "Good", "English": "Excellent",
+		StudentCfg: newStudent(
+			baseStudentCfg,
+			"Jane Smith", "72", "Mr. Michael Smith", "Mrs. Olivia Smith",
+			"9-B", "2024-25", "", "92%", "", "jane@example.com", "", true,
+		),
+		Tests: []Test{
+			{
+				Name: "Test 1",
+				Marks: map[string]int{
+					"Math": 78, "Science": 84, "English": 90,
+				},
+				Max: map[string]int{
+					"Math": 100, "Science": 100, "English": 100,
+				},
+				Grade: map[string]string{
+					"Math": "B+", "Science": "A", "English": "A+",
+				},
+				Remarks: map[string]string{
+					"Math": "Fair", "Science": "Good", "English": "Excellent",
+				},
+			},
+			{
+				Name: "Test 2",
+				Marks: map[string]int{
+					"Math": 78, "Science": 84, "English": 90,
+				},
+				Max: map[string]int{
+					"Math": 100, "Science": 100, "English": 100,
+				},
+				Grade: map[string]string{
+					"Math": "B+", "Science": "A", "English": "A+",
+				},
+				Remarks: map[string]string{
+					"Math": "Fair", "Science": "Good", "English": "Excellent",
+				},
+			},
+				{
+				Name: "Test 2",
+				Marks: map[string]int{
+					"Math": 78, "Science": 84, "English": 90,
+				},
+				Max: map[string]int{
+					"Math": 100, "Science": 100, "English": 100,
+				},
+				Grade: map[string]string{
+					"Math": "B+", "Science": "A", "English": "A+",
+				},
+				Remarks: map[string]string{
+					"Math": "Fair", "Science": "Good", "English": "Excellent",
+				},
+			},
 		},
 	},
 }
 
 	acdCfg := ReportConfig{
 		ShowMaxPerSubject:        true,
-		ShowMinPerSubject:        false,
-		ShowTotal:      true,
-		ShowPercentage: true,
+		ShowMinPerSubject:        true,
+		ShowTotal:                true,
+		ShowPercentage:           true,
 		ShowGradePerSubject:      true,
-		ShowRemarksPerTest:true,
-	    ShowConductPerTest:true,
-		EnableSlNo:false,
-	    EnableOverAllRemarks :true,
-	EnableOverAllConduct :true,
-	EnableOverAllPercentage :true,
-	EnableGradeForLastTestOnly :true,
-	PrintOnlyGrade :true,
-	Table1Title : "Part A",
-	Table2Tittle :"Part B",
-	TableTitleFontSize: 16,
-	TableDataFontSize :14,
-	RemarksText: "Remarks",
-	ConductText :"Conduct",
-	PercentageText: "Percentage",
-	ShowTestName:true,
-	Subjects:            []string{"English", "Maths", "Science"},
-
+		ShowRemarksPerTest:       true,
+		ShowConductPerTest:       true,
+		EnableSlNo:               false,
+		PrintRemarks:     "over-all",
+		PrintConduct:     "over-all",
+		EnableGradeForLastTestOnly: true,
+		PrintOnlyGrade:             false,
+		ShowMaxPerTest:true,
+		ShowMinPerTest:true,
+		Table1Title:                "Part A",
+		Table2Tittle:               "Part B",
+		TableTitleFontSize:         16,
+		TableDataFontSize:          14,
+		RemarksText:                "Remarks",
+		ConductText:                "Conduct",
+		PercentageText:             "Percentage",
+		ShowTestName:               true,
+		Subjects:                   []string{"English", "Math", "Science"},
 	}
 
-	html := generateHTML(cfg, instCfg,titleCfg,studentCfg, acdCfg, tests)
+html := generateAllStudentsHTML(cfg, instCfg, titleCfg, acdCfg, studentsData)
 
-	if err := generatePDF(html, "report.pdf"); err != nil {
+	// ✅ Generate a single PDF file containing all pages
+	if err := generatePDF(html, "All_Students_Report.pdf"); err != nil {
 		log.Fatal("❌ PDF generation failed:", err)
 	}
-	fmt.Println("✅ PDF generated successfully: report.pdf")
+	fmt.Println("✅ Generated: All_Students_Report.pdf")
 }
 
 // -----------------------------
@@ -349,23 +416,58 @@ func toBase64(path string) string {
 // -----------------------------
 // HTML GENERATION
 // -----------------------------
-func generateHTML(cfg PageDecorationConfig, instCfg InstitutionDetailsConfig , titleCfg TitleConfig,studentCfg StudentDetailsConfig,acdConfig ReportConfig,tests []Test) string {
-	instHTML := generateInstitutionDetailsHTML(instCfg)
-	titleHTML := generateTitleHTML(titleCfg)
-studentDetailsHTML := generateStudentDetailsHTML(studentCfg)
-academicDetailsHTML := generateAcademicDetails(acdConfig,tests)
-	var bgCSS, wmCSS string
-	if cfg.ShowBackground && cfg.BackgroundImage != "" {
-		bgCSS = fmt.Sprintf(`background-image: url('data:image/png;base64,%s'); background-repeat: no-repeat; background-size: cover; background-position: center;`, cfg.BackgroundImage)
-	}
-	if cfg.ShowWatermark && cfg.WatermarkImage != "" {
-		wmCSS = fmt.Sprintf(`background-image: url('data:image/jpeg;base64,%s'); background-repeat: no-repeat; background-size: 30%%; background-position: center center; `, cfg.WatermarkImage)
-	}
-	borderStyle := "none"
-	if cfg.ShowBorder {
-		borderStyle = fmt.Sprintf("%.1fpx %s %s", cfg.BorderWidth, cfg.BorderType, cfg.BorderColor)
+func generateAllStudentsHTML(
+	cfg PageDecorationConfig,
+	instCfg InstitutionDetailsConfig,
+	titleCfg TitleConfig,
+	acdConfig ReportConfig,
+	students []StudentReportData,
+) string {
+	var allReportsHTML string
+
+	for _, studentData := range students {
+		instHTML := generateInstitutionDetailsHTML(instCfg)
+		titleHTML := generateTitleHTML(titleCfg)
+		studentDetailsHTML := generateStudentDetailsHTML(studentData.StudentCfg)
+		academicDetailsHTML := generateAcademicDetails(acdConfig, studentData.Tests)
+        chartHTML := generateStudentChartHTML(studentData.Tests)
+
+		var bgCSS, wmCSS string
+		if cfg.ShowBackground && cfg.BackgroundImage != "" {
+			bgCSS = fmt.Sprintf(`background-image: url('data:image/png;base64,%s'); background-repeat: no-repeat; background-size: cover; background-position: center;`, cfg.BackgroundImage)
+		}
+		if cfg.ShowWatermark && cfg.WatermarkImage != "" {
+			wmCSS = fmt.Sprintf(`background-image: url('data:image/jpeg;base64,%s'); background-repeat: no-repeat; background-size: 30%%; background-position: center center;`, cfg.WatermarkImage)
+		}
+
+		borderStyle := "none"
+		if cfg.ShowBorder {
+			borderStyle = fmt.Sprintf("%.1fpx %s %s", cfg.BorderWidth, cfg.BorderType, cfg.BorderColor)
+		}
+
+		// Combine per-student page
+		studentPageHTML := fmt.Sprintf(`
+		<div class="report-page">
+			<div class="page-wrapper" style="border:%s; padding:%s %s %s %s; %s">
+				<div class="content-with-watermark" style="%s">
+					%s <!-- Institution Header -->
+					<hr style="border:0.5px solid black">
+					<b>%s</b>
+					
+					<div>%s</div>
+					<div>%s</div>
+<div>%s</div>
+					
+				</div>
+			</div>
+		</div>
+		`, borderStyle, cfg.MarginTop, cfg.MarginRight, cfg.MarginBottom, cfg.MarginLeft,
+			bgCSS, wmCSS, instHTML, titleHTML, studentDetailsHTML, academicDetailsHTML,chartHTML)
+
+		allReportsHTML += studentPageHTML
 	}
 
+	// Wrap all pages in a single HTML document
 	return fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
@@ -381,14 +483,22 @@ html, body {
 	print-color-adjust: exact;
 	font-family: 'Arial', sans-serif;
 }
+.report-page {
+	width: 210mm; /* A4 width */
+	height: 297mm; /* A4 height */
+	box-sizing: border-box;
+	page-break-after: always;
+	margin: 0;
+	padding: 0;
+}
+.report-page:last-child {
+	page-break-after: avoid;
+}
 .page-wrapper {
 	width: 100%%;
 	height: 100%%;
-	border: %s;
-	padding: %s %s %s %s;
 	box-sizing: border-box;
 	background-color: white;
-	%s
 }
 .content-with-watermark {
 	width: 100%%;
@@ -396,7 +506,6 @@ html, body {
 	box-sizing: border-box;
 	position: relative;
 	padding:10px;
-	%s
 }
 .header-section {
 	text-align: center;
@@ -405,6 +514,7 @@ html, body {
 .header-section img {
 	height: 60px;
 	margin: 0 10px;
+	object-fit: contain;
 }
 .info {
 	font-size: 14px;
@@ -413,30 +523,10 @@ html, body {
 </style>
 </head>
 <body>
-	<div class="page-wrapper">
-		<div class="content-with-watermark">
-			%s <!-- Institution Header -->
-			<hr style="border:0.5px solid black">
-			 <b>%s</b>
-			
-			<div>%s</div>
-			
-
-			<div>%s</div>
-
-			<h3>Remarks</h3>
-			<p>Excellent performance overall.</p>
-
-			<h3>Result</h3>
-			<p>Promoted to next class.</p>
-		</div>
-	</div>
+	%s
 </body>
 </html>
-`, borderStyle, cfg.MarginTop, cfg.MarginRight, cfg.MarginBottom, cfg.MarginLeft,
-		bgCSS, wmCSS,
-		instHTML,
-		titleHTML,studentDetailsHTML,academicDetailsHTML)
+`, allReportsHTML)
 }
 
 // -----------------------------
@@ -648,15 +738,21 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 }
 
   func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
-	html := `<html><head><style>
+		fontSize :=  cfg.TableDataFontSize
+	if fontSize == 0 {
+		fontSize = 12 // default size if not set
+	}
+	html := fmt.Sprintf(`<html><head><style>
 	table {
 		border-collapse: collapse;
-		width: 100%;
+		width: 100%%;
 		margin-top: 20px;
+				font-size: %dpx;
+
 	}
 	th, td {
 		border: 1px solid #000;
-		padding: 6px;
+		padding: 2px;
 		text-align: center;
 	}
 		th .subject {
@@ -666,7 +762,7 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 	th {
 		background-color: #eee;
 	}
-	</style></head><body>`
+	</style></head><body>`,fontSize)
 
 	html += "<table>"
 
@@ -738,8 +834,70 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 			}
 		}
 		html += "</tr>"
+	
+		
 	}
-
+	
+	if cfg.ShowMaxPerTest {
+			html += "<tr>"
+			if cfg.EnableSlNo {
+				html += "<td></td>"
+			}
+			html += "<td><b>Max Marks</b></td>"
+			for _, test := range tests {
+				colCount := 0
+				if !cfg.PrintOnlyGrade {
+					if cfg.ShowMaxPerSubject {
+						colCount++
+					}
+					if cfg.ShowMinPerSubject {
+						colCount++
+					}
+					colCount++
+				}
+				if cfg.ShowGradePerSubject {
+					colCount++
+				}
+				totalMax := 0
+				for _, subj := range cfg.Subjects {
+					if val, ok := test.Max[subj]; ok {
+						totalMax += val
+					}
+				}
+				html += fmt.Sprintf(`<td colspan="%d">%d</td>`, colCount, totalMax)
+			}
+			html += "</tr>"
+		}
+		if cfg.ShowMinPerTest {
+			html += "<tr>"
+			if cfg.EnableSlNo {
+				html += "<td></td>"
+			}
+			html += "<td><b>Min Marks</b></td>"
+			for _, test := range tests {
+				colCount := 0
+				if !cfg.PrintOnlyGrade {
+					if cfg.ShowMaxPerSubject {
+						colCount++
+					}
+					if cfg.ShowMinPerSubject {
+						colCount++
+					}
+					colCount++
+				}
+				if cfg.ShowGradePerSubject {
+					colCount++
+				}
+				totalMax := 0
+				for _, subj := range cfg.Subjects {
+					if val, ok := test.Max[subj]; ok {
+						totalMax += val
+					}
+				}
+				html += fmt.Sprintf(`<td colspan="%d">%d</td>`, colCount, totalMax)
+			}
+			html += "</tr>"
+		}
 	// ---------------- Body ----------------
 	for i, subj := range cfg.Subjects {
 		html += "<tr>"
@@ -766,49 +924,204 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 	}
 
 	// ---------------- Footer (Total, Remarks, etc.) ----------------
-	addFooterRow := func(label string, value string) {
-		html += "<tr>"
-		if cfg.EnableSlNo {
-			html += fmt.Sprintf(`<td colspan="2"><b>%s</b></td>`, label)
-		} else {
-			html += fmt.Sprintf(`<td><b>%s</b></td>`, label)
-		}
+addFooterRow := func(label string, value string) {
+	colSpan := 1
+	if cfg.EnableSlNo {
+		colSpan = 2
+	}
 
-		for range tests {
-			colCount := 0
-			if !cfg.PrintOnlyGrade {
-				if cfg.ShowMaxPerSubject {
-					colCount++
-				}
-				if cfg.ShowMinPerSubject {
-					colCount++
-				}
-				colCount++ // Obt column
+	// Count total test-based columns
+	testColCount := 0
+	for range tests {
+		if !cfg.PrintOnlyGrade {
+			if cfg.ShowMaxPerSubject {
+				testColCount++
 			}
-			if cfg.ShowGradePerSubject {
+			if cfg.ShowMinPerSubject {
+				testColCount++
+			}
+			testColCount++ // Obtained
+		}
+		if cfg.ShowGradePerSubject {
+			testColCount++
+		}
+	}
+
+
+	// --- Handle "over-all" case for Conduct or Remarks ---
+	if (label == cfg.RemarksText && cfg.PrintRemarks == "over-all") ||
+		(label == cfg.ConductText && cfg.PrintConduct == "over-all") {
+		html += "<tr>"
+		html += fmt.Sprintf(`<td colspan="%d"><b>%s<b><td colspan="%d"> %s</td>`, colSpan, label,testColCount,value)
+		html += "</tr>"
+		return
+	}
+
+	// --- Default per-test case ---
+	html += "<tr>"
+	if cfg.EnableSlNo {
+		html += fmt.Sprintf(`<td colspan="2"><b>%s</b></td>`, label)
+	} else {
+		html += fmt.Sprintf(`<td><b>%s</b></td>`, label)
+	}
+
+	for range tests {
+		colCount := 0
+		if !cfg.PrintOnlyGrade {
+			if cfg.ShowMaxPerSubject {
 				colCount++
 			}
-			html += fmt.Sprintf(`<td colspan="%d">%s</td>`, colCount, value)
+			if cfg.ShowMinPerSubject {
+				colCount++
+			}
+			colCount++ // Obt column
 		}
-		html += "</tr>"
+		if cfg.ShowGradePerSubject {
+			colCount++
+		}
+		html += fmt.Sprintf(`<td colspan="%d">%s</td>`, colCount, value)
 	}
+	html += "</tr>"
+}
 
-	if cfg.ShowTotal {
-		addFooterRow("Total", "450")
-	}
-	if cfg.ShowPercentage {
-		addFooterRow("Percentage", "90%")
-	}
-	if cfg.ShowRemarksPerTest {
-		addFooterRow("Remarks", "Excellent")
-	}
-	if cfg.ShowConductPerTest {
-		addFooterRow("Conduct", "Good")
-	}
+// --- Footer Rows ---
+if cfg.ShowTotal {
+	addFooterRow("Total", "450")
+}
+if cfg.ShowPercentage {
+	addFooterRow(cfg.PercentageText, "90%")
+}
+if cfg.ShowRemarksPerTest {
+	addFooterRow(cfg.RemarksText, "Excellent")
+}
+if cfg.ShowConductPerTest {
+	addFooterRow(cfg.ConductText, "Good")
+}
+
 
 	html += "</table></body></html>"
 	return html
 }
+
+func generateStudentChartHTML(tests []Test) string {
+	if len(tests) == 0 {
+		return `
+<div class="chart-section" style="page-break-inside: avoid; text-align: center; margin-top: 20px;">
+	<p style="color: #666;">Not enough test data to generate a performance chart.</p>
+</div>`
+	}
+
+	// --- Chart Config ---
+	const (
+		maxHeight   = 100.0 // Max bar height = 100 marks
+		baseY       = 100.0 // Y position of X-axis (0 marks)
+		chartHeight = 220   // Increased to accommodate legends
+		barWidth    = 30.0
+		barGap      = 10.0
+		groupGap    = 40.0
+	)
+
+	// --- Extract Subjects Dynamically ---
+	subjects := []string{}
+	if len(tests[0].Marks) > 0 {
+		for subject := range tests[0].Marks {
+			subjects = append(subjects, subject)
+		}
+	}
+	sort.Strings(subjects)
+
+	// --- Color Palette (auto loops if more tests) ---
+	colors := []string{
+		"#1A237E", "#4CAF50", "#F44336", "#FF9800", "#9C27B0",
+		"#03A9F4", "#795548", "#009688", "#E91E63", "#607D8B",
+	}
+
+	// --- Helper: Axis Drawing (Y intervals: 0, 25, 50, 75, 100) ---
+	buildAxes := func() string {
+		var ticks strings.Builder
+		for i := 0; i <= 4; i++ {
+			value := float64(i) * 25
+			y := baseY - (value * (maxHeight / 100.0))
+			ticks.WriteString(fmt.Sprintf(
+				`<text x="30" y="%.0f" font-size="12" fill="#666">%d</text>
+				 <line x1="50" y1="%.0f" x2="55" y2="%.0f" stroke="#999" stroke-width="1"/>`,
+				y+4, int(value), y, y,
+			))
+		}
+
+		return fmt.Sprintf(`
+			<!-- Y-Axis -->
+			<line x1="50" y1="%.0f" x2="50" y2="40" stroke="#999" stroke-width="1" />
+			%s
+
+			<!-- X-Axis -->
+			<line x1="50" y1="%.0f" x2="680" y2="%.0f" stroke="#999" stroke-width="1" />
+		`, baseY, ticks.String(), baseY, baseY)
+	}
+
+	var barGroup, xLabels, legends strings.Builder
+
+	// --- Draw Bars and Labels ---
+	for i, subj := range subjects {
+		groupStart := 100.0 + float64(i)*(float64(len(tests))*(barWidth+barGap) + groupGap)
+
+		for j, test := range tests {
+			color := colors[j%len(colors)]
+			mark := test.Marks[subj]
+			h := float64(mark) * maxHeight / 100.0
+			x := groupStart + float64(j)*(barWidth+barGap)
+
+			barGroup.WriteString(fmt.Sprintf(
+				`<rect x="%.0f" y="%.0f" width="%.0f" height="%.0f" fill="%s" />
+				 <text x="%.0f" y="%.0f" font-size="11" fill="#333" text-anchor="middle">%d</text>`,
+				x, baseY-h, barWidth, h, color, x+(barWidth/2), baseY-h-5, mark,
+			))
+		}
+
+		groupCenter := groupStart + float64(len(tests))*(barWidth+barGap)/2
+		xLabels.WriteString(fmt.Sprintf(
+			`<text x="%.0f" y="%.0f" font-size="13" fill="#333" font-weight="bold" text-anchor="middle">%s</text>`,
+			groupCenter, baseY+20, subj,
+		))
+	}
+
+	// --- Legend (Below the Chart, Centered) ---
+	legendStartX := 180.0
+	legendY := baseY + 50
+	for i, test := range tests {
+		color := colors[i%len(colors)]
+		x := legendStartX + float64(i)*100.0
+		legends.WriteString(fmt.Sprintf(
+			`<rect x="%.0f" y="%.0f" width="12" height="12" fill="%s" />
+			 <text x="%.0f" y="%.0f" font-size="12" fill="#333">%s</text>`,
+			x, legendY, color, x+18, legendY+10, test.Name,
+		))
+	}
+
+	// --- Return Final HTML ---
+	return fmt.Sprintf(`
+<div class="chart-section" style="page-break-inside: avoid; text-align: center; margin-top: 20px;">
+	<div style="width: 700px; height: %dpx; max-width: 90%%; margin: 10px auto;">
+		<svg width="100%%" height="100%%" viewBox="0 0 700 %d" xmlns="http://www.w3.org/2000/svg">
+			<g transform="translate(10, 10)">
+				%s
+				%s
+				%s
+				%s
+			</g>
+		</svg>
+	</div>
+</div>`,
+		chartHeight, chartHeight,
+		buildAxes(),
+		barGroup.String(),
+		xLabels.String(),
+		legends.String(),
+	)
+}
+
+
+
 
 
 
@@ -884,12 +1197,14 @@ func generatePDF(htmlContent string, filename string) error {
 
 func addFooterRow(html *string, cfg ReportConfig, label string, value any) {
 	colSpan := columnCount(cfg)
-	dataColSpan := colSpan - 2
 
+
+
+	dataColSpan := colSpan - 2
 	*html += "<tr>"
 
 	if cfg.EnableSlNo {
-		// Merge Sl + Subject columns
+		// Merge SlNo + Subject columns
 		*html += fmt.Sprintf("<td colspan='2'><b>%s</b></td>", label)
 	} else {
 		// Only Subject column
@@ -900,4 +1215,22 @@ func addFooterRow(html *string, cfg ReportConfig, label string, value any) {
 	// Value cell (spanning the rest)
 	*html += fmt.Sprintf("<td colspan='%d'>%v</td>", dataColSpan, value)
 	*html += "</tr>"
+}
+
+
+func newStudent(base StudentDetailsConfig, name, rollNo, father, mother, class, year, dob, attendance, address, email, mobile string, showPhoto bool) StudentDetailsConfig {
+	cfg := base
+	cfg.StudentName = name
+	cfg.StudentRollNo = rollNo
+	cfg.FatherName = father
+	cfg.MotherName = mother
+	cfg.StudentClass = class
+	cfg.AcademicYear = year
+	cfg.DateOfBirth = dob
+	cfg.AttendanceStats = attendance
+	cfg.Address = address
+	cfg.Email = email
+	cfg.Mobile = mobile
+	cfg.ShowPhoto = showPhoto
+	return cfg
 }
