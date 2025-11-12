@@ -50,7 +50,7 @@ type InstitutionDetailsConfig struct {
 	PrintPhoto1Config     bool
 	PrintPhoto2Config     bool
 	PrintInstLogo         bool
-	PrintHeader           string
+	HeaderName           string
 	EnableHeader          bool
 	Photo1Base64          string
 	Photo2Base64          string
@@ -118,7 +118,43 @@ type StudentDetailsConfig struct {
 	StudentPhotoY int
 }
 
+type ReportConfig struct {
+	ShowMaxPerSubject        bool
+	ShowMinPerSubject        bool
+	ShowTotal      bool
+	ShowPercentage bool
+	ShowGradePerSubject       bool
 
+	EnableSlNo bool
+	ShowMaxPerTest bool
+	ShowMinPerTest bool
+	ShowGradePerTest bool
+	ShowRemarksPerTest bool
+	ShowConductPerTest bool
+	
+	EnableOverAllRemarks bool
+	EnableOverAllConduct bool
+	EnableOverAllPercentage bool
+	EnableGradeForLastTestOnly bool
+	PrintOnlyGrade bool
+	Table1Title string
+	Table2Tittle string
+	TableTitleFontSize int
+	TableDataFontSize int
+	RemarksText string
+	ConductText string
+	PercentageText string
+
+}
+
+type Test struct {
+	Name    string
+	Marks   map[string]int // subject -> marks
+	Max     map[string]int
+	Min     map[string]int
+	Remarks map[string]string
+	Grade   map[string]string
+}
 // -----------------------------
 // MAIN
 // -----------------------------
@@ -144,7 +180,7 @@ func main() {
 		PrintPhoto1Config:     true,
 		PrintPhoto2Config:     true,
 		PrintInstLogo:         true,
-		PrintHeader:           "EDUATE PRIVATE LIMITED",
+		HeaderName:           "EDUATE PRIVATE LIMITED",
 		EnableHeader:          true,
 		Photo1Base64:          toBase64("./assets/Arcadis_Logo.png"),
 		Photo2Base64:          toBase64("./assets/Arcadis_Logo.png"),
@@ -222,7 +258,56 @@ studentCfg := StudentDetailsConfig{
 	
 
 }
-	html := generateHTML(cfg, instCfg,titleCfg,studentCfg)
+tests := []Test{
+		{
+			Name: "Test 1",
+			Marks: map[string]int{
+				"Math":  80,
+				"Science": 90,
+			},
+			Max: map[string]int{
+				"Math": 100,
+				"Science": 100,
+			},
+			Min: map[string]int{
+				"Math": 30,
+				"Science": 35,
+			},
+			Remarks: map[string]string{
+				"Math": "Good",
+				"Science": "Excellent",
+			},
+			Grade: map[string]string{
+				"Math": "A",
+				"Science": "A+",
+			},
+		},
+	}
+
+	acdCfg := ReportConfig{
+		ShowMaxPerSubject:        true,
+		ShowMinPerSubject:        true,
+		ShowTotal:      true,
+		ShowPercentage: true,
+		ShowGradePerSubject:      true,
+	
+		EnableSlNo:true,
+
+		EnableOverAllRemarks :true,
+	EnableOverAllConduct :true,
+	EnableOverAllPercentage :true,
+	EnableGradeForLastTestOnly :true,
+	PrintOnlyGrade :true,
+	Table1Title : "Part A",
+	Table2Tittle :"Part B",
+	TableTitleFontSize: 16,
+	TableDataFontSize :14,
+	RemarksText: "Remarks",
+	ConductText :"Conduct",
+	PercentageText: "Percentage",
+	}
+
+	html := generateHTML(cfg, instCfg,titleCfg,studentCfg, acdCfg, tests)
 
 	if err := generatePDF(html, "report.pdf"); err != nil {
 		log.Fatal("❌ PDF generation failed:", err)
@@ -245,10 +330,11 @@ func toBase64(path string) string {
 // -----------------------------
 // HTML GENERATION
 // -----------------------------
-func generateHTML(cfg PageDecorationConfig, instCfg InstitutionDetailsConfig , titleCfg TitleConfig,studentCfg StudentDetailsConfig) string {
+func generateHTML(cfg PageDecorationConfig, instCfg InstitutionDetailsConfig , titleCfg TitleConfig,studentCfg StudentDetailsConfig,acdConfig ReportConfig,tests []Test) string {
 	instHTML := generateInstitutionDetailsHTML(instCfg)
 	titleHTML := generateTitleHTML(titleCfg)
 studentDetailsHTML := generateStudentDetailsHTML(studentCfg)
+academicDetailsHTML := generateAcademicDetails(acdConfig,tests)
 	var bgCSS, wmCSS string
 	if cfg.ShowBackground && cfg.BackgroundImage != "" {
 		bgCSS = fmt.Sprintf(`background-image: url('data:image/png;base64,%s'); background-repeat: no-repeat; background-size: cover; background-position: center;`, cfg.BackgroundImage)
@@ -317,13 +403,7 @@ html, body {
 			<div>%s</div>
 			
 
-			<h3>Academic Performance</h3>
-			<table border="1" width="100%%" cellspacing="0" cellpadding="6">
-				<tr><th>Subject</th><th>Marks</th></tr>
-				<tr><td>Math</td><td>90</td></tr>
-				<tr><td>Science</td><td>85</td></tr>
-				<tr><td>English</td><td>88</td></tr>
-			</table>
+			<div>%s</div>
 
 			<h3>Remarks</h3>
 			<p>Excellent performance overall.</p>
@@ -337,7 +417,7 @@ html, body {
 `, borderStyle, cfg.MarginTop, cfg.MarginRight, cfg.MarginBottom, cfg.MarginLeft,
 		bgCSS, wmCSS,
 		instHTML,
-		titleHTML,studentDetailsHTML)
+		titleHTML,studentDetailsHTML,academicDetailsHTML)
 }
 
 // -----------------------------
@@ -358,7 +438,7 @@ func generateInstitutionDetailsHTML(cfg InstitutionDetailsConfig) string {
 	// Build institution text HTML
 	instTextHTML := fmt.Sprintf(`
 	<div style="text-align:center; margin-top:10px;">
-		%s
+		<div style="color:%s; font-size:%dpx;">%s</div>
 		<div style="color:%s; font-size:%dpx;">%s</div>
 		<div style="color:%s; font-size:%dpx;">%s</div>
 		<div style="color:%s; font-size:%dpx;">%s, %s - %s</div>
@@ -367,7 +447,8 @@ func generateInstitutionDetailsHTML(cfg InstitutionDetailsConfig) string {
 
 	</div>
 	`,
-		cfg.EnableHeaderText(),
+				cfg.HeaderColor, cfg.HeaderFontSize, cfg.HeaderName,
+
 		cfg.InstNameColor, cfg.InstNameFontSize, cfg.InstName,
 		cfg.AffiliatedColor, cfg.AffiliatedFontSize, cfg.PrintAffiliatedTo,
 		cfg.AddressColor, cfg.AddressFontSize, cfg.InstAddress, cfg.InstPlace, cfg.InstPin,
@@ -433,13 +514,7 @@ func generateTitleHTML(titleCfg TitleConfig) string {
 
 	return titleHTML + subtitleHTML
 }
-func (i InstitutionDetailsConfig) EnableHeaderText() string {
-	if i.EnableHeader {
-		return fmt.Sprintf(`<h2 style="margin:0; color:%s; font-size:%dpx;">%s</h2>`,
-			i.HeaderColor, i.HeaderFontSize, i.PrintHeader)
-	}
-	return ""
-}
+
 func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 	// Convert all values to string safely
 	fields := []struct {
@@ -554,6 +629,121 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 	return allFieldsHTML
 }
 
+func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
+	html := `<html><head><style>
+	table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+	th, td { border: 1px solid #000; padding: 8px; text-align: center; }
+	th { background-color: #eee; }
+	</style></head><body>`
+
+	for _, test := range tests {
+		html += fmt.Sprintf("<b>%s</b><table><tr>", test.Name)
+
+		// Header row
+		if cfg.EnableSlNo {
+			html += "<th>Sl</th>"
+		}
+		html += "<th>Subject</th>"
+		if cfg.ShowMaxPerSubject {
+			html += "<th>Max</th>"
+		}
+		if cfg.ShowMinPerSubject {
+			html += "<th>Min</th>"
+		}
+		html += "<th>Obt.</th>"
+		if cfg.ShowGradePerSubject {
+			html += "<th>Grade</th>"
+		}
+		html += "</tr>"
+
+		// Subjects rows
+		i := 1
+		for subject, marks := range test.Marks {
+			html += "<tr>"
+
+			if cfg.EnableSlNo {
+				html += fmt.Sprintf("<td>%d</td>", i)
+			}
+
+			html += fmt.Sprintf("<td>%s</td>", subject)
+
+			if cfg.ShowMaxPerSubject {
+				html += fmt.Sprintf("<td>%d</td>", test.Max[subject])
+			}
+
+			if cfg.ShowMinPerSubject {
+				html += fmt.Sprintf("<td>%d</td>", test.Min[subject])
+			}
+
+			html += fmt.Sprintf("<td>%d</td>", marks)
+
+			if cfg.ShowGradePerSubject {
+				html += fmt.Sprintf("<td>%s</td>", test.Grade[subject])
+			}
+
+			html += "</tr>"
+			i++
+		}
+
+		// Optional total row
+		if cfg.ShowTotal {
+			total := 0
+			for _, m := range test.Marks {
+				total += m
+			}
+			html += fmt.Sprintf("<tr><td><b>Total</b></td><td colspan='%d'>%d</td></tr>", 
+				columnCount(cfg), total)
+		}
+
+		// Optional percentage row
+		if cfg.ShowPercentage {
+			sum := 0
+			maxSum := 0
+			for subj, m := range test.Marks {
+				sum += m
+				if cfg.ShowMaxPerSubject {
+					maxSum += test.Max[subj]
+				}
+			}
+			percentage := 0.0
+			if maxSum > 0 {
+				percentage = float64(sum) / float64(maxSum) * 100
+			}
+			html += fmt.Sprintf("<tr><td ><b>Percentage</b></td><td colspan='%d'><b>%.2f%%</b></td></tr>", columnCount(cfg), percentage)
+		}
+
+		// Remarks / Conduct rows
+		if cfg.ShowRemarksPerTest {
+			html += fmt.Sprintf("<tr><td ><b>Remarks</b></td><td colspan='%d'>Excellent</td></tr>", columnCount(cfg))
+		}
+		if cfg.ShowConductPerTest {
+			html += fmt.Sprintf("<tr><td ><b>Conduct</b></td><td colspan='%d'> Good</td></tr>", columnCount(cfg))
+		}
+
+		html += "</table><br>"
+	}
+
+	html += "</body></html>"
+	return html
+}
+
+// Helper function to get number of columns for colspan in total/percentage/remarks
+func columnCount(cfg ReportConfig) int {
+	count := 2 // Subject + Obt.
+	if cfg.EnableSlNo {
+		count++
+	}
+	if cfg.ShowMaxPerSubject {
+		count++
+	}
+	if cfg.ShowMinPerSubject {
+		count++
+	}
+	if cfg.ShowGradePerSubject {
+		count++
+	}
+	return count
+}
 
 // -----------------------------
 // PDF GENERATION
