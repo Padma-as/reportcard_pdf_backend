@@ -145,6 +145,8 @@ type ReportConfig struct {
 	ConductText string
 	PercentageText string
 
+	ShowTestName bool
+
 }
 
 type Test struct {
@@ -290,10 +292,10 @@ tests := []Test{
 		ShowTotal:      true,
 		ShowPercentage: true,
 		ShowGradePerSubject:      true,
-	
+		ShowRemarksPerTest:true,
+	    ShowConductPerTest:true,
 		EnableSlNo:true,
-
-		EnableOverAllRemarks :true,
+	    EnableOverAllRemarks :true,
 	EnableOverAllConduct :true,
 	EnableOverAllPercentage :true,
 	EnableGradeForLastTestOnly :true,
@@ -305,6 +307,7 @@ tests := []Test{
 	RemarksText: "Remarks",
 	ConductText :"Conduct",
 	PercentageText: "Percentage",
+	ShowTestName:true,
 	}
 
 	html := generateHTML(cfg, instCfg,titleCfg,studentCfg, acdCfg, tests)
@@ -443,12 +446,11 @@ func generateInstitutionDetailsHTML(cfg InstitutionDetailsConfig) string {
 		<div style="color:%s; font-size:%dpx;">%s</div>
 		<div style="color:%s; font-size:%dpx;">%s, %s - %s</div>
 		<div style="color:%s; font-size:%dpx;">%s</div>
-				<div style="color:%s; font-size:%dpx;">%s</div>
+		<div style="color:%s; font-size:%dpx;">%s</div>
 
 	</div>
 	`,
-				cfg.HeaderColor, cfg.HeaderFontSize, cfg.HeaderName,
-
+		cfg.HeaderColor, cfg.HeaderFontSize, cfg.HeaderName,
 		cfg.InstNameColor, cfg.InstNameFontSize, cfg.InstName,
 		cfg.AffiliatedColor, cfg.AffiliatedFontSize, cfg.PrintAffiliatedTo,
 		cfg.AddressColor, cfg.AddressFontSize, cfg.InstAddress, cfg.InstPlace, cfg.InstPin,
@@ -684,40 +686,29 @@ func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
 			html += "</tr>"
 			i++
 		}
-
-		// Optional total row
-		if cfg.ShowTotal {
-			total := 0
+	total := 0
 			for _, m := range test.Marks {
 				total += m
 			}
-			html += fmt.Sprintf("<tr><td><b>Total</b></td><td colspan='%d'>%d</td></tr>", 
-				columnCount(cfg), total)
+		// Optional total row
+		if cfg.ShowTotal {
+		
+			
+				addFooterRow(&html, cfg, "Total", total)
+
 		}
 
 		// Optional percentage row
 		if cfg.ShowPercentage {
-			sum := 0
-			maxSum := 0
-			for subj, m := range test.Marks {
-				sum += m
-				if cfg.ShowMaxPerSubject {
-					maxSum += test.Max[subj]
-				}
-			}
-			percentage := 0.0
-			if maxSum > 0 {
-				percentage = float64(sum) / float64(maxSum) * 100
-			}
-			html += fmt.Sprintf("<tr><td ><b>Percentage</b></td><td colspan='%d'><b>%.2f%%</b></td></tr>", columnCount(cfg), percentage)
+				percentage := float64(total) / float64(len(test.Marks))
+	addFooterRow(&html, cfg, "Percentage", fmt.Sprintf("%.2f%%", percentage))
 		}
 
 		// Remarks / Conduct rows
 		if cfg.ShowRemarksPerTest {
-			html += fmt.Sprintf("<tr><td ><b>Remarks</b></td><td colspan='%d'>Excellent</td></tr>", columnCount(cfg))
-		}
+addFooterRow(&html, cfg, "Remarks", "Excellent")		}
 		if cfg.ShowConductPerTest {
-			html += fmt.Sprintf("<tr><td ><b>Conduct</b></td><td colspan='%d'> Good</td></tr>", columnCount(cfg))
+		addFooterRow(&html, cfg, "Conduct", "Excellent")
 		}
 
 		html += "</table><br>"
@@ -785,4 +776,25 @@ func generatePDF(htmlContent string, filename string) error {
 	}
 
 	return os.WriteFile(filename, pdfBuf, 0644)
+}
+
+
+func addFooterRow(html *string, cfg ReportConfig, label string, value any) {
+	colSpan := columnCount(cfg)
+	dataColSpan := colSpan - 2
+
+	*html += "<tr>"
+
+	if cfg.EnableSlNo {
+		// Merge Sl + Subject columns
+		*html += fmt.Sprintf("<td colspan='2'><b>%s</b></td>", label)
+	} else {
+		// Only Subject column
+		*html += fmt.Sprintf("<td><b>%s</b></td>", label)
+		dataColSpan = colSpan - 1
+	}
+
+	// Value cell (spanning the rest)
+	*html += fmt.Sprintf("<td colspan='%d'>%v</td>", dataColSpan, value)
+	*html += "</tr>"
 }
