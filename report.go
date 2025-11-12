@@ -939,7 +939,7 @@ func generateStudentChartHTML(tests []Test) string {
 	const (
 		maxHeight   = 100.0 // Max bar height = 100 marks
 		baseY       = 100.0 // Y position of X-axis (0 marks)
-		chartHeight = 220   // Increased to accommodate legends
+		chartHeight = 250   // Increased to accommodate legends
 		barWidth    = 30.0
 		barGap      = 10.0
 		groupGap    = 40.0
@@ -961,27 +961,35 @@ func generateStudentChartHTML(tests []Test) string {
 	}
 
 	// --- Helper: Axis Drawing (Y intervals: 0, 25, 50, 75, 100) ---
-	buildAxes := func() string {
-		var ticks strings.Builder
-		for i := 0; i <= 4; i++ {
-			value := float64(i) * 25
-			y := baseY - (value * (maxHeight / 100.0))
-			ticks.WriteString(fmt.Sprintf(
-				`<text x="30" y="%.0f" font-size="12" fill="#666">%d</text>
-				 <line x1="50" y1="%.0f" x2="55" y2="%.0f" stroke="#999" stroke-width="1"/>`,
-				y+4, int(value), y, y,
-			))
-		}
+buildAxes := func() string {
+        var ticks strings.Builder
+        for i := 0; i <= 4; i++ {
+            value := float64(i) * 25
+            y := baseY - (value * (maxHeight / 100.0))
+            
+            // Add the Y-axis label and a small tick mark
+            ticks.WriteString(fmt.Sprintf(
+                `<text x="30" y="%.0f" font-size="12" fill="#666">%d</text>
+                 <line x1="50" y1="%.0f" x2="55" y2="%.0f" stroke="#999" stroke-width="1"/>`,
+                y+4, int(value), y, y,
+            ))
 
-		return fmt.Sprintf(`
-			<!-- Y-Axis -->
-			<line x1="50" y1="%.0f" x2="50" y2="40" stroke="#999" stroke-width="1" />
-			%s
+            // ADDITION: Check if value is 50 (i=2) to draw the full horizontal grid line
+            if value == 50.0 {
+                ticks.WriteString(fmt.Sprintf(
+                    `<line x1="50" y1="%.0f" x2="680" y2="%.0f" stroke="#ccc" stroke-width="1" stroke-dasharray="4,4"/>`,
+                    y, y,
+                ))
+            }
+        }
 
-			<!-- X-Axis -->
-			<line x1="50" y1="%.0f" x2="680" y2="%.0f" stroke="#999" stroke-width="1" />
-		`, baseY, ticks.String(), baseY, baseY)
-	}
+        return fmt.Sprintf(`
+            <line x1="50" y1="%.0f" x2="50" y2="40" stroke="#999" stroke-width="1" />
+            %s
+
+            <line x1="50" y1="%.0f" x2="680" y2="%.0f" stroke="#999" stroke-width="1" />
+        `, baseY, ticks.String(), baseY, baseY)
+    }
 
 	var barGroup, xLabels, legends strings.Builder
 
@@ -1045,37 +1053,6 @@ func generateStudentChartHTML(tests []Test) string {
 }
 
 
-
-
-
-
-
-// Helper function 
-func columnCount(cfg ReportConfig) int {
-	count := 2 // Subject + Obt.
-	if cfg.EnableSlNo {
-		count++
-	}
-
-	return count
-}
-func countEnabledColumns(cfg ReportConfig) int {
-	count := 1 // Obtained is always shown
-	if cfg.ShowMaxPerSubject {
-		count++
-	}
-	if cfg.ShowMinPerSubject {
-		count++
-	}
-	if cfg.ShowGradePerSubject {
-		count++
-	}
-
-	return count
-}
-
-
-
 // -----------------------------
 // PDF GENERATION
 // -----------------------------
@@ -1117,6 +1094,35 @@ func generatePDF(htmlContent string, filename string) error {
 
 	return os.WriteFile(filename, pdfBuf, 0644)
 }
+
+
+
+
+
+// Helper function 
+func columnCount(cfg ReportConfig) int {
+	count := 2 // Subject + Obt.
+	if cfg.EnableSlNo {
+		count++
+	}
+
+	return count
+}
+func countEnabledColumns(cfg ReportConfig) int {
+	count := 1 // Obtained is always shown
+	if cfg.ShowMaxPerSubject {
+		count++
+	}
+	if cfg.ShowMinPerSubject {
+		count++
+	}
+	if cfg.ShowGradePerSubject {
+		count++
+	}
+
+	return count
+}
+
 
 
 func addFooterRow(html *string, cfg ReportConfig, label string, value any) {
