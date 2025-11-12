@@ -305,15 +305,15 @@ tests := []Test{
 		ShowMinPerSubject:        false,
 		ShowTotal:      true,
 		ShowPercentage: true,
-		ShowGradePerSubject:      false,
+		ShowGradePerSubject:      true,
 		ShowRemarksPerTest:true,
 	    ShowConductPerTest:true,
-		EnableSlNo:true,
+		EnableSlNo:false,
 	    EnableOverAllRemarks :true,
 	EnableOverAllConduct :true,
 	EnableOverAllPercentage :true,
 	EnableGradeForLastTestOnly :true,
-	PrintOnlyGrade :false,
+	PrintOnlyGrade :true,
 	Table1Title : "Part A",
 	Table2Tittle :"Part B",
 	TableTitleFontSize: 16,
@@ -647,7 +647,7 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 	return allFieldsHTML
 }
 
-func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
+  func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
 	html := `<html><head><style>
 	table {
 		border-collapse: collapse;
@@ -659,6 +659,10 @@ func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
 		padding: 6px;
 		text-align: center;
 	}
+		th .subject {
+  text-align: left !important;
+  padding-left: 8px;
+}
 	th {
 		background-color: #eee;
 	}
@@ -666,67 +670,77 @@ func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
 
 	html += "<table>"
 
+	// ---------------- Header ----------------
 	if cfg.ShowTestName {
-	html += "<tr>"
-	if cfg.EnableSlNo {
-		html += `<th rowspan="2">Sl</th>`
-	}
-	html += `<th rowspan="2">Subject</th>`
+		html += "<tr>"
+		if cfg.EnableSlNo {
+			html += `<th rowspan="2">Sl</th>`
+		}
+		html += `<th rowspan="2" >Subject</th>`
 
-	for _, test := range tests {
-		colCount := 1 // at least marks
-		if cfg.ShowMaxPerSubject {
-			colCount++
-		}
-		if cfg.ShowMinPerSubject {
-			colCount++
-		}
-		if cfg.ShowGradePerSubject {
-			colCount++
-		}
-		html += fmt.Sprintf(`<th colspan="%d">%s</th>`, colCount, test.Name)
-	}
-	html += "</tr>"
+		for _, test := range tests {
+			colCount := 0
+			if !cfg.PrintOnlyGrade {
+				if cfg.ShowMaxPerSubject {
+					colCount++
+				}
+				if cfg.ShowMinPerSubject {
+					colCount++
+				}
+				colCount++ // Obt column
+			}
+			if cfg.ShowGradePerSubject {
+				colCount++
+			}
 
-	// --- Second header row (Max/Min/Obt/Grade) ---
-	html += "<tr>"
-	for range tests {
-		if cfg.ShowMaxPerSubject {
-			html += "<th>Max</th>"
+			html += fmt.Sprintf(`<th colspan="%d">%s</th>`, colCount, test.Name)
 		}
-		if cfg.ShowMinPerSubject {
-			html += "<th>Min</th>"
-		}
-		html += "<th>Obt</th>"
-		if cfg.ShowGradePerSubject {
-			html += "<th>Grade</th>"
-		}
-	}
-	html += "</tr>"
-} else {
-	// --- Single header row (no test names) ---
-	html += "<tr>"
-	if cfg.EnableSlNo {
-		html += `<th rowspan="1">Sl</th>`
-	}
-	html += `<th rowspan="1">Subject</th>`
+		html += "</tr>"
 
-	for range tests {
-		if cfg.ShowMaxPerSubject {
-			html += "<th>Max</th>"
+		// --- Second header row ---
+		html += "<tr>"
+		for range tests {
+			if !cfg.PrintOnlyGrade {
+				if cfg.ShowMaxPerSubject {
+					html += "<th>Max</th>"
+				}
+				if cfg.ShowMinPerSubject {
+					html += "<th>Min</th>"
+				}
+				html += "<th>Obt</th>"
+			}
+			if cfg.ShowGradePerSubject {
+				html += "<th>Grade</th>"
+			}
 		}
-		if cfg.ShowMinPerSubject {
-			html += "<th>Min</th>"
+		html += "</tr>"
+
+	} else {
+		// --- Single header row (no test names) ---
+		html += "<tr>"
+		if cfg.EnableSlNo {
+			html += `<th rowspan="1">Sl</th>`
 		}
-		html += "<th>Obt</th>"
-		if cfg.ShowGradePerSubject {
-			html += "<th>Grade</th>"
+		html += `<th rowspan="1" class="subject" >Subject</th>`
+
+		for range tests {
+			if !cfg.PrintOnlyGrade {
+				if cfg.ShowMaxPerSubject {
+					html += "<th>Max</th>"
+				}
+				if cfg.ShowMinPerSubject {
+					html += "<th>Min</th>"
+				}
+				html += "<th>Obt</th>"
+			}
+			if cfg.ShowGradePerSubject {
+				html += "<th>Grade</th>"
+			}
 		}
+		html += "</tr>"
 	}
-	html += "</tr>"
-}
 
-
+	// ---------------- Body ----------------
 	for i, subj := range cfg.Subjects {
 		html += "<tr>"
 		if cfg.EnableSlNo {
@@ -735,13 +749,15 @@ func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
 		html += fmt.Sprintf("<td>%s</td>", subj)
 
 		for _, test := range tests {
-			if cfg.ShowMaxPerSubject {
-				html += fmt.Sprintf("<td>%d</td>", test.Max[subj])
-			}
-			if cfg.ShowMinPerSubject {
-				html += fmt.Sprintf("<td>%d</td>", test.Min[subj])
-			}
-			html += fmt.Sprintf("<td>%d</td>", test.Marks[subj])
+			if !cfg.PrintOnlyGrade {
+				if cfg.ShowMaxPerSubject {
+					html += fmt.Sprintf("<td>%d</td>", test.Max[subj])
+				}
+				if cfg.ShowMinPerSubject {
+					html += fmt.Sprintf("<td>%d</td>", test.Min[subj])
+				}
+				html += fmt.Sprintf("<td>%d</td>", test.Marks[subj])
+			} 
 			if cfg.ShowGradePerSubject {
 				html += "<td>A+</td>"
 			}
@@ -749,9 +765,7 @@ func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
 		html += "</tr>"
 	}
 
-	// =========================
-	// 3️⃣ FOOTER ROWS (TOTAL, %, GRADE, REMARKS, CONDUCT)
-	// =========================
+	// ---------------- Footer (Total, Remarks, etc.) ----------------
 	addFooterRow := func(label string, value string) {
 		html += "<tr>"
 		if cfg.EnableSlNo {
@@ -761,12 +775,15 @@ func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
 		}
 
 		for range tests {
-			colCount := 1
-			if cfg.ShowMaxPerSubject {
-				colCount++
-			}
-			if cfg.ShowMinPerSubject {
-				colCount++
+			colCount := 0
+			if !cfg.PrintOnlyGrade {
+				if cfg.ShowMaxPerSubject {
+					colCount++
+				}
+				if cfg.ShowMinPerSubject {
+					colCount++
+				}
+				colCount++ // Obt column
 			}
 			if cfg.ShowGradePerSubject {
 				colCount++
@@ -795,21 +812,14 @@ func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
 
 
 
-// Helper function to get number of columns for colspan in total/percentage/remarks
+
+// Helper function 
 func columnCount(cfg ReportConfig) int {
 	count := 2 // Subject + Obt.
 	if cfg.EnableSlNo {
 		count++
 	}
-	if cfg.ShowMaxPerSubject {
-		count++
-	}
-	if cfg.ShowMinPerSubject {
-		count++
-	}
-	if cfg.ShowGradePerSubject {
-		count++
-	}
+
 	return count
 }
 func countEnabledColumns(cfg ReportConfig) int {
