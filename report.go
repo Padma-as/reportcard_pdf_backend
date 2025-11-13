@@ -361,6 +361,55 @@ studentsData := []StudentReportData{
 				Remarks: map[string]string{
 					"Math": "Fair", "Science": "Good", "English": "Excellent",
 				},
+				
+			},
+			{
+				Name: "Test 2",
+				Marks: map[string]int{
+					"Math": 78, "Science": 84, "English": 90,
+				},
+				Max: map[string]int{
+					"Math": 100, "Science": 100, "English": 100,
+				},
+				Grade: map[string]string{
+					"Math": "B+", "Science": "A", "English": "A+",
+				},
+				Remarks: map[string]string{
+					"Math": "Fair", "Science": "Good", "English": "Excellent",
+				},
+				
+			},
+				{
+				Name: "Test 2",
+				Marks: map[string]int{
+					"Math": 78, "Science": 84, "English": 90,
+				},
+				Max: map[string]int{
+					"Math": 100, "Science": 100, "English": 100,
+				},
+				Grade: map[string]string{
+					"Math": "B+", "Science": "A", "English": "A+",
+				},
+				Remarks: map[string]string{
+					"Math": "Fair", "Science": "Good", "English": "Excellent",
+				},
+				
+			},
+				{
+				Name: "Test 2",
+				Marks: map[string]int{
+					"Math": 78, "Science": 84, "English": 90,
+				},
+				Max: map[string]int{
+					"Math": 100, "Science": 100, "English": 100,
+				},
+				Grade: map[string]string{
+					"Math": "B+", "Science": "A", "English": "A+",
+				},
+				Remarks: map[string]string{
+					"Math": "Fair", "Science": "Good", "English": "Excellent",
+				},
+				
 			},
 		},
 	},
@@ -937,12 +986,12 @@ func generateStudentChartHTML(tests []Test) string {
 
 	// --- Chart Config ---
 	const (
-		maxHeight   = 100.0 // Max bar height = 100 marks
+		maxHeight   = 90.0 // Max bar height = 100 marks
 		baseY       = 100.0 // Y position of X-axis (0 marks)
 		chartHeight = 250   // Increased to accommodate legends
-		barWidth    = 30.0
-		barGap      = 10.0
-		groupGap    = 40.0
+		barWidth    = 25.0
+		barGap      = 5.0
+		groupGap    = 20.0
 	)
 
 	// --- Extract Subjects Dynamically ---
@@ -961,41 +1010,41 @@ func generateStudentChartHTML(tests []Test) string {
 	}
 
 	// --- Helper: Axis Drawing (Y intervals: 0, 25, 50, 75, 100) ---
+// --- Helper: Axis Drawing (Y intervals: 0, 25, 50, 75, 100) ---
 buildAxes := func() string {
-        var ticks strings.Builder
-        for i := 0; i <= 4; i++ {
-            value := float64(i) * 25
-            y := baseY - (value * (maxHeight / 100.0))
-            
-            // Add the Y-axis label and a small tick mark
+    var ticks strings.Builder
+    for i := 0; i <= 4; i++ {
+        value := float64(i) * 25
+        y := baseY - (value * (maxHeight / 100.0))
+        
+        // Add the Y-axis label and a small tick mark
+        ticks.WriteString(fmt.Sprintf(
+            `<text x="30" y="%.0f" font-size="12" fill="#666">%d</text>
+              <line x1="50" y1="%.0f" x2="55" y2="%.0f" stroke="#999" stroke-width="1"/>`,// y line  small ticks
+            y+4, int(value), y, y,
+        ))
+
+        // ADDITION: Check if value is 50 (i=2) to draw the full horizontal grid line
+        if value == 50.0 {
             ticks.WriteString(fmt.Sprintf(
-                `<text x="30" y="%.0f" font-size="12" fill="#666">%d</text>
-                 <line x1="50" y1="%.0f" x2="55" y2="%.0f" stroke="#999" stroke-width="1"/>`,
-                y+4, int(value), y, y,
+                `<line x1="50" y1="%.0f" x2="680" y2="%.0f" stroke="#ccc" stroke-width="1" stroke-dasharray="4,4"/>`,
+                y, y,
             ))
-
-            // ADDITION: Check if value is 50 (i=2) to draw the full horizontal grid line
-            if value == 50.0 {
-                ticks.WriteString(fmt.Sprintf(
-                    `<line x1="50" y1="%.0f" x2="680" y2="%.0f" stroke="#ccc" stroke-width="1" stroke-dasharray="4,4"/>`,
-                    y, y,
-                ))
-            }
         }
-
-        return fmt.Sprintf(`
-            <line x1="50" y1="%.0f" x2="50" y2="40" stroke="#999" stroke-width="1" />
-            %s
-
-            <line x1="50" y1="%.0f" x2="680" y2="%.0f" stroke="#999" stroke-width="1" />
-        `, baseY, ticks.String(), baseY, baseY)
     }
 
+    return fmt.Sprintf(`
+        <line x1="50" y1="%.0f" x2="50" y2="10" stroke="#999" stroke-width="1" /> // <-- FIXED Y2 HERE
+        %s
+
+        <line x1="50" y1="%.0f" x2="680" y2="%.0f" stroke="#999" stroke-width="1" />// bottom line
+    `, baseY, ticks.String(), baseY, baseY)
+}
 	var barGroup, xLabels, legends strings.Builder
 
 	// --- Draw Bars and Labels ---
 	for i, subj := range subjects {
-		groupStart := 100.0 + float64(i)*(float64(len(tests))*(barWidth+barGap) + groupGap)
+		groupStart := 60.0 + float64(i)*(float64(len(tests))*(barWidth+barGap) + groupGap)
 
 		for j, test := range tests {
 			color := colors[j%len(colors)]
@@ -1005,36 +1054,36 @@ buildAxes := func() string {
 
 			barGroup.WriteString(fmt.Sprintf(
 				`<rect x="%.0f" y="%.0f" width="%.0f" height="%.0f" fill="%s" />
-				 <text x="%.0f" y="%.0f" font-size="11" fill="#333" text-anchor="middle">%d</text>`,
+				 <text x="%.0f" y="%.0f" font-size="10" fill="#333" text-anchor="middle">%d</text>`,//sub names
 				x, baseY-h, barWidth, h, color, x+(barWidth/2), baseY-h-5, mark,
 			))
 		}
 
 		groupCenter := groupStart + float64(len(tests))*(barWidth+barGap)/2
 		xLabels.WriteString(fmt.Sprintf(
-			`<text x="%.0f" y="%.0f" font-size="13" fill="#333" font-weight="bold" text-anchor="middle">%s</text>`,
-			groupCenter, baseY+20, subj,
+			`<text x="%.0f" y="%.0f" font-size="10" fill="#000" font-weight="bold" text-anchor="middle">%s</text>`,
+			groupCenter, baseY+15, subj,
 		))
 	}
 
 	// --- Legend (Below the Chart, Centered) ---
-	legendStartX := 180.0
-	legendY := baseY + 50
+	legendStartX := 50.0
+	legendY := baseY + 25
 	for i, test := range tests {
 		color := colors[i%len(colors)]
 		x := legendStartX + float64(i)*100.0
 		legends.WriteString(fmt.Sprintf(
 			`<rect x="%.0f" y="%.0f" width="12" height="12" fill="%s" />
 			 <text x="%.0f" y="%.0f" font-size="12" fill="#333">%s</text>`,
-			x, legendY, color, x+18, legendY+10, test.Name,
+			x, legendY, color, x+20, legendY+10, test.Name,
 		))
 	}
 
 	// --- Return Final HTML ---
 	return fmt.Sprintf(`
 <div class="chart-section" style="page-break-inside: avoid; text-align: center; margin-top: 20px;">
-	<div style="width: 700px; height: %dpx; max-width: 90%%; margin: 10px auto;">
-		<svg width="100%%" height="100%%" viewBox="0 0 700 %d" xmlns="http://www.w3.org/2000/svg">
+	<div style="width:100%%; height: %dpx; max-width: 95%%; margin: 10px auto;">
+		<svg width="100%%" height="100%%" viewBox="0 0 800 %d" xmlns="http://www.w3.org/2000/svg">
 			<g transform="translate(10, 10)">
 				%s
 				%s
