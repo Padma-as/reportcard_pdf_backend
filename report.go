@@ -38,6 +38,7 @@ type PageDecorationConfig struct {
 type StudentReportData struct {
 	StudentCfg     StudentDetailsConfig
 	Tests          []Test
+	CoScholasticMarks []CoScholasticMark
 
 }
 type TitleConfig struct {
@@ -315,6 +316,32 @@ studentsData := []StudentReportData{
 				},
 			},
 		},
+		CoScholasticMarks : []CoScholasticMark{
+		{
+			SlNo:    1,
+			Subject: "My Pronunciation is",
+			Grade:   "B",
+			Remarks: "BADDDDDD",
+		},
+		{
+			SlNo:    2,
+			Subject: "I am Independent",
+			Grade:   "A+",
+			Remarks: "", // Grade Remarks are empty for this row in the image
+		},
+		{
+			SlNo:    3,
+			Subject: "I listen to instructions",
+			Grade:   "B",
+			Remarks: "",
+		},
+		{
+			SlNo:    4,
+			Subject: "I can sing & dance",
+			Grade:   "C",
+			Remarks: "",
+		},
+	},
 	},
 	{
 		StudentCfg: newStudent(
@@ -418,6 +445,32 @@ studentsData := []StudentReportData{
 				
 			},
 		},
+		CoScholasticMarks : []CoScholasticMark{
+		{
+			SlNo:    1,
+			Subject: "My Pronunciation is",
+			Grade:   "B",
+			Remarks: "BADDDDDD",
+		},
+		{
+			SlNo:    2,
+			Subject: "I am Independent",
+			Grade:   "A+",
+			Remarks: "", // Grade Remarks are empty for this row in the image
+		},
+		{
+			SlNo:    3,
+			Subject: "I listen to instructions",
+			Grade:   "B",
+			Remarks: "",
+		},
+		{
+			SlNo:    4,
+			Subject: "I can sing & dance",
+			Grade:   "C",
+			Remarks: "",
+		},
+	},
 	},
 }
 
@@ -429,7 +482,7 @@ studentsData := []StudentReportData{
 		ShowGradePerSubject:      true,
 		ShowRemarksPerTest:       true,
 		ShowConductPerTest:       true,
-		EnableSlNo:               true,
+		EnableSlNo:               false,
 		PrintRemarks:     "over-all",
 		PrintConduct:     "over-all",
 		EnableGradeForLastTestOnly: true,
@@ -438,14 +491,16 @@ studentsData := []StudentReportData{
 		ShowMinPerTest:true,
 		Table1Title:                "Part A",
 		Table2Tittle:               "Part B",
-		TableTitleFontSize:         16,
-		TableDataFontSize:          14,
+		TableTitleFontSize:         14,
+		TableDataFontSize:          10,
 		RemarksText:                "Remarks",
 		ConductText:                "Conduct",
 		PercentageText:             "Percentage",
 		ShowTestName:               false,
 		Subjects:                   []string{"English", "Math", "Science"},
 	}
+
+	
 
 html := generateAllStudentsHTML(cfg, instCfg, titleCfg, acdCfg, studentsData)
 
@@ -456,8 +511,7 @@ html := generateAllStudentsHTML(cfg, instCfg, titleCfg, acdCfg, studentsData)
 	fmt.Println("✅ Generated: All_Students_Report.pdf")
 }
 
-// -----------------------------
-// HELPERS
+
 // -----------------------------
 func toBase64(path string) string {
 	data, err := os.ReadFile(path)
@@ -468,9 +522,7 @@ func toBase64(path string) string {
 	return base64.StdEncoding.EncodeToString(data)
 }
 
-// -----------------------------
-// HTML GENERATION
-// -----------------------------
+
 func generateAllStudentsHTML(
 	cfg PageDecorationConfig,
 	instCfg InstitutionDetailsConfig,
@@ -485,7 +537,8 @@ func generateAllStudentsHTML(
 		titleHTML := generateTitleHTML(titleCfg)
 		studentDetailsHTML := generateStudentDetailsHTML(studentData.StudentCfg)
 		academicDetailsHTML := generateAcademicDetails(acdConfig, studentData.Tests)
-        chartHTML := generateStudentChartHTML(studentData.Tests)
+coSholasticDetailsHTML := generateCoScholasticHTML(acdConfig,studentData.CoScholasticMarks,)  
+      chartHTML := generateStudentChartHTML(studentData.Tests)
 
 		var bgCSS, wmCSS string
 		if cfg.ShowBackground && cfg.BackgroundImage != "" {
@@ -511,14 +564,14 @@ func generateAllStudentsHTML(
 					
 					<div>%s</div>
 					<div>%s</div>
-<div>%s</div>
+					<div>%s</div>
+                   <div>%s</div>
 					
 				</div>
 			</div>
 		</div>
 		`, borderStyle, cfg.MarginTop, cfg.MarginRight, cfg.MarginBottom, cfg.MarginLeft,
-			bgCSS, wmCSS, instHTML, titleHTML, studentDetailsHTML, academicDetailsHTML,chartHTML)
-
+			bgCSS, wmCSS, instHTML, titleHTML, studentDetailsHTML, academicDetailsHTML,coSholasticDetailsHTML,chartHTML)
 		allReportsHTML += studentPageHTML
 	}
 
@@ -581,7 +634,7 @@ html, body {
 	%s
 </body>
 </html>
-`, allReportsHTML)
+`,allReportsHTML)
 }
 
 // -----------------------------
@@ -793,9 +846,9 @@ func generateStudentDetailsHTML(cfg StudentDetailsConfig) string {
 }
 
 func generateAcademicDetails(cfg ReportConfig, tests []Test) string {
-	fontSize := cfg.TableDataFontSize
-	if fontSize == 0 {
-		fontSize = 12
+	
+	if cfg.TableDataFontSize == 0 {
+		cfg.TableDataFontSize = 12
 	}
 
 	SlcolSpan := 1
@@ -803,12 +856,15 @@ if cfg.EnableSlNo {
     SlcolSpan = 2
 }
 
-	html := fmt.Sprintf(`<html><head><style>
-		table { border-collapse: collapse; width: 100%%; margin-top: 20px; font-size: %dpx; }
+	html := fmt.Sprintf(`<html><head>
+	<style>
+		table { border-collapse: collapse; width: 100%%; margin-top: 5px; font-size: %dpx; }
 		th, td { border: 1px solid #000; padding: 2px; text-align: center; }
 		td.subject { text-align: left !important; padding-left: 8px; }
 		th { background-color: #eee; }
-	</style></head><body><table>`, fontSize)
+	</style></head><body>
+	<b style="font-size:%dpx">%s</b>
+	<table>`, cfg.TableDataFontSize,cfg.TableTitleFontSize,cfg.Table1Title)
 
 	// --- Helper: count number of columns per test ---
 	getColCount := func() int {
@@ -1177,6 +1233,79 @@ func generateStudentChartHTML(tests []Test) string {
 	)
 }
 
+
+func generateCoScholasticHTML(cfg ReportConfig ,marks []CoScholasticMark,) string {
+    if len(marks) == 0 {
+        return ""
+    }
+
+    var headerCols, bodyRows strings.Builder
+    
+    slWidth := 5 
+    subjWidth := 50
+    gradeWidth := 15
+    remarksWidth := 30
+    
+    subjectColspan := 1
+    if !cfg.EnableSlNo {
+        subjWidth += slWidth
+        subjectColspan = 2 
+    }
+
+    // --- 1. Build Table Header (<th>) ---
+    if cfg.EnableSlNo {
+        headerCols.WriteString(fmt.Sprintf(`<th style="width: %d%%; padding: 5px; border-color: black;">Sl</th>`, slWidth))
+    }
+    
+    // Subject Header with potential colspan
+    headerCols.WriteString(fmt.Sprintf(`<th style="width: %d%%; padding: 5px; border-color: black;" colspan="%d">Subject</th>`, subjWidth, subjectColspan))
+    
+    // Remaining Headers
+    headerCols.WriteString(fmt.Sprintf(`<th style="width: %d%%; padding: 5px; border-color: black;">Grade</th>`, gradeWidth))
+    headerCols.WriteString(fmt.Sprintf(`<th style="width: %d%%; padding: 5px; border-color: black;">Grade Remarks</th>`, remarksWidth))
+
+
+    // --- 2. Build Table Body (<tr> and <td>) ---
+    for _, mark := range marks {
+        bodyRows.WriteString("<tr>\n")
+        
+        // Sl No Column (Conditional)
+        if cfg.EnableSlNo {
+            bodyRows.WriteString(fmt.Sprintf(`<td style="text-align:center; padding: 5px; border-color: black;">%d</td>`, mark.SlNo))
+        }
+
+        // Subject Column (Conditional colspan)
+        // Ensure Subject content is left-aligned
+        bodyRows.WriteString(fmt.Sprintf(
+            `<td style="padding: 5px; text-align:left; border-color: black;" colspan="%d">%s</td>`, 
+            subjectColspan, 
+            mark.Subject,
+        ))
+        
+        // Grade and Remarks Columns
+        bodyRows.WriteString(fmt.Sprintf(`<td style="text-align:center; padding: 5px; border-color: black;">%s</td>`, mark.Grade))
+        bodyRows.WriteString(fmt.Sprintf(`<td style="text-align:center; padding: 5px; border-color: black;">%s</td>`, mark.Remarks))
+        
+        bodyRows.WriteString("</tr>\n")
+    }
+
+    // --- 3. Return Final HTML ---
+    return fmt.Sprintf(`
+<div class="co-scholastic-section" style="margin-top: 5px; margin-bottom: 0px;">
+    <b style="margin-bottom: 5px; text-align: left;">%s</b>
+    <table border="1" style="width: 100%%; marggiborder-collapse: collapse; font-size:%dpx; border-color: black;">
+        <thead>
+            <tr style="background-color: #ADD8E6; text-align: center; font-weight: bold;">
+                %s
+            </tr>
+        </thead>
+        <tbody>
+            %s
+        </tbody>
+    </table>
+</div>
+`,cfg.Table2Tittle, cfg.TableDataFontSize, headerCols.String(), bodyRows.String())
+}
 // -----------------------------
 // PDF GENERATION
 // -----------------------------
