@@ -163,6 +163,12 @@ type Test struct {
 	Remarks map[string]string
 	Grade   map[string]string
 }
+type CoScholasticMark struct {
+	SlNo    int
+	Subject string
+	Grade   string
+	Remarks string
+}
 // -----------------------------
 // MAIN
 // -----------------------------
@@ -800,7 +806,7 @@ if cfg.EnableSlNo {
 	html := fmt.Sprintf(`<html><head><style>
 		table { border-collapse: collapse; width: 100%%; margin-top: 20px; font-size: %dpx; }
 		th, td { border: 1px solid #000; padding: 2px; text-align: center; }
-		th.subject { text-align: left !important; padding-left: 8px; }
+		td.subject { text-align: left !important; padding-left: 8px; }
 		th { background-color: #eee; }
 	</style></head><body><table>`, fontSize)
 
@@ -840,7 +846,7 @@ if cfg.ShowTestName {
 if cfg.EnableSlNo {
 	html += fmt.Sprintf(`<th rowspan="%d">Sl</th>`, rowSpan)
 }
-html += fmt.Sprintf(`<th rowspan="%d" class="subject">Subject</th>`, rowSpan)
+html += fmt.Sprintf(`<th rowspan="%d" >Subject</th>`, rowSpan)
 
 	if cfg.ShowTestName {
 		for _, test := range tests {
@@ -883,10 +889,10 @@ html += fmt.Sprintf(`<th rowspan="%d" class="subject">Subject</th>`, rowSpan)
 	addSummaryRow := func(label string, perTestData func(test Test) int) {
 		html += "<tr>"
 		
-html += fmt.Sprintf(`<td colspan="%d"><b>%s</b></td>`, SlcolSpan, label)
+html += fmt.Sprintf(`<td colspan="%d" class="%s"><b>%s</b></td>`, SlcolSpan,"subject", label)
 		for _, test := range tests {
 			total := perTestData(test)
-			html += fmt.Sprintf(`<td colspan="%d">%d</td>`, getColCount(), total)
+			html += fmt.Sprintf(`<td colspan="%d" >%d</td>`, getColCount(), total)
 		}
 		html += "</tr>"
 	}
@@ -917,7 +923,7 @@ html += fmt.Sprintf(`<td colspan="%d"><b>%s</b></td>`, SlcolSpan, label)
 		if cfg.EnableSlNo {
 			html += fmt.Sprintf("<td>%d</td>", i+1)
 		}
-		html += fmt.Sprintf("<td>%s</td>", subj)
+html += fmt.Sprintf("<td class=\"%s\">%s</td>", "subject", subj)
 
 		for _, test := range tests {
 			if !cfg.PrintOnlyGrade {
@@ -941,13 +947,13 @@ html += fmt.Sprintf(`<td colspan="%d"><b>%s</b></td>`, SlcolSpan, label)
 		// Handle "over-all"
 		if (label == cfg.RemarksText && cfg.PrintRemarks == "over-all") ||
 			(label == cfg.ConductText && cfg.PrintConduct == "over-all") {
-			html += fmt.Sprintf(`<tr><td colspan="%d"><b>%s</b> </td><td colspan="%d">%s</td></tr>`, SlcolSpan, label,totalCols, value)
+			html += fmt.Sprintf(`<tr><td colspan="%d" class="%s"><b>%s</b> </td><td colspan="%d">%s</td></tr>`, SlcolSpan,"subject", label,totalCols, value)
 			return
 		}
 
 		html += "<tr>"
 		if cfg.EnableSlNo {
-			html += fmt.Sprintf(`<td colspan="%d"><b>%s</b></td>`,SlcolSpan, label)
+			html += fmt.Sprintf(`<td colspan="%d" class="%s"><b>%s</b></td>`,SlcolSpan,"subject", label)
 		} else {
 			html += fmt.Sprintf(`<td><b>%s</b></td>`, label)
 		}
@@ -980,18 +986,21 @@ func generateStudentChartHTML(tests []Test) string {
 	if len(tests) == 0 {
 		return `
 <div class="chart-section" style="page-break-inside: avoid; text-align: center; margin-top: 20px;">
-	<p style="color: #666;">Not enough test data to generate a performance chart.</p>
+    <p style="color: #666;">Not enough test data to generate a performance chart.</p>
 </div>`
 	}
 
-	// --- Chart Config ---
+	// --- Chart Config (Updated for Dynamic Width) ---
 	const (
-		maxHeight   = 90.0 // Max bar height = 100 marks
+		maxHeight   = 90.0  // Max bar height = 100 marks
 		baseY       = 100.0 // Y position of X-axis (0 marks)
 		chartHeight = 250   // Increased to accommodate legends
-		barWidth    = 25.0
-		barGap      = 5.0
-		groupGap    = 20.0
+		// Max width of the drawing area for bars, excluding Y-axis and margins
+		chartDrawWidth = 720.0
+		leftMargin     = 50.0 // Space for Y-axis labels
+		rightMargin    = 30.0
+		initialX       = leftMargin + 10.0 // Starting X position for the first bar group
+		groupGap       = 15.0              // Fixed gap between subject groups
 	)
 
 	// --- Extract Subjects Dynamically ---
@@ -1003,6 +1012,43 @@ func generateStudentChartHTML(tests []Test) string {
 	}
 	sort.Strings(subjects)
 
+	// Guard against no subjects
+	if len(subjects) == 0 {
+		return `
+<div class="chart-section" style="page-break-inside: avoid; text-align: center; margin-top: 20px;">
+    <p style="color: #666;">No subject data found to generate a performance chart.</p>
+</div>`
+	}
+
+	numTests := float64(len(tests))
+	numSubjects := float64(len(subjects))
+
+	availableWidth := chartDrawWidth - (leftMargin + rightMargin)
+	
+	// Total space consumed by fixed subject group gaps
+	totalGroupGapSpace := numSubjects * groupGap
+
+	// Space remaining for bars and inner bar gaps
+	spaceForBarsAndInnerGaps := availableWidth - totalGroupGapSpace
+
+	const barGapFactor = 0.2
+	
+	totalUnits := numSubjects * numTests + numSubjects * (numTests - 1) * barGapFactor
+	
+	dynamicUnitSize := (spaceForBarsAndInnerGaps) / totalUnits
+	
+	barWidth := dynamicUnitSize
+	barGap := barWidth * barGapFactor
+	
+	// If the calculated width is too small, use a minimum.
+	if barWidth < 10.0 {
+	    barWidth = 10.0
+	    barGap = 2.0
+	}
+	
+	// Recalculate group width based on the final determined barWidth/barGap
+	groupWidth := numTests * barWidth + (numTests - 1) * barGap
+
 	// --- Color Palette (auto loops if more tests) ---
 	colors := []string{
 		"#1A237E", "#4CAF50", "#F44336", "#FF9800", "#9C27B0",
@@ -1010,88 +1056,118 @@ func generateStudentChartHTML(tests []Test) string {
 	}
 
 	// --- Helper: Axis Drawing (Y intervals: 0, 25, 50, 75, 100) ---
-// --- Helper: Axis Drawing (Y intervals: 0, 25, 50, 75, 100) ---
-buildAxes := func() string {
-    var ticks strings.Builder
-    for i := 0; i <= 4; i++ {
-        value := float64(i) * 25
-        y := baseY - (value * (maxHeight / 100.0))
-        
-        // Add the Y-axis label and a small tick mark
-        ticks.WriteString(fmt.Sprintf(
-            `<text x="30" y="%.0f" font-size="12" fill="#666">%d</text>
-              <line x1="50" y1="%.0f" x2="55" y2="%.0f" stroke="#999" stroke-width="1"/>`,// y line  small ticks
-            y+4, int(value), y, y,
-        ))
+	buildAxes := func() string {
+		var ticks strings.Builder
+		// Y-axis labels and ticks
+		for i := 0; i <= 4; i++ {
+			value := float64(i) * 25
+			y := baseY - (value * (maxHeight / 100.0))
 
-        // ADDITION: Check if value is 50 (i=2) to draw the full horizontal grid line
-        if value == 50.0 {
-            ticks.WriteString(fmt.Sprintf(
-                `<line x1="50" y1="%.0f" x2="680" y2="%.0f" stroke="#ccc" stroke-width="1" stroke-dasharray="4,4"/>`,
-                y, y,
-            ))
-        }
-    }
+			// Add the Y-axis label and a small tick mark
+			ticks.WriteString(fmt.Sprintf(
+				`<text x="30" y="%.0f" font-size="12" fill="#666">%d</text>
+				<line x1="%f" y1="%.0f" x2="%f" y2="%.0f" stroke="#999" stroke-width="1"/>`,
+				y+4, int(value), leftMargin, y, leftMargin+5, y,
+			))
 
-    return fmt.Sprintf(`
-        <line x1="50" y1="%.0f" x2="50" y2="10" stroke="#999" stroke-width="1" /> // <-- FIXED Y2 HERE
-        %s
+			// ADDITION: Draw full horizontal grid line (for 50 mark line and possibly others)
+			if value == 50.0 { // Draw only for 50 mark line
+				ticks.WriteString(fmt.Sprintf(
+					`<line x1="%f" y1="%.0f" x2="%f" y2="%.0f" stroke="#ccc" stroke-width="1" stroke-dasharray="4,4"/>`,
+					leftMargin, y, chartDrawWidth, y,
+				))
+			}
+		}
 
-        <line x1="50" y1="%.0f" x2="680" y2="%.0f" stroke="#999" stroke-width="1" />// bottom line
-    `, baseY, ticks.String(), baseY, baseY)
-}
+		// Y-axis line (vertical)
+		yAxisLine := fmt.Sprintf(
+			`<line x1="%f" y1="%.0f" x2="%f" y2="10" stroke="#999" stroke-width="1" />`,
+			leftMargin, baseY, leftMargin,
+		)
+
+		// X-axis line (horizontal)
+		xAxisLine := fmt.Sprintf(
+			`<line x1="%f" y1="%.0f" x2="%f" y2="%.0f" stroke="#999" stroke-width="1" />`,
+			leftMargin, baseY, chartDrawWidth, baseY,
+		)
+
+		return yAxisLine + ticks.String() + xAxisLine
+	}
+    
 	var barGroup, xLabels, legends strings.Builder
 
 	// --- Draw Bars and Labels ---
 	for i, subj := range subjects {
-		groupStart := 60.0 + float64(i)*(float64(len(tests))*(barWidth+barGap) + groupGap)
+		// GroupStart calculation uses the calculated groupWidth and groupGap
+		groupStart := initialX + float64(i)*(groupWidth + groupGap)
 
 		for j, test := range tests {
 			color := colors[j%len(colors)]
 			mark := test.Marks[subj]
 			h := float64(mark) * maxHeight / 100.0
+			
+			// X position within the group
 			x := groupStart + float64(j)*(barWidth+barGap)
 
 			barGroup.WriteString(fmt.Sprintf(
-				`<rect x="%.0f" y="%.0f" width="%.0f" height="%.0f" fill="%s" />
-				 <text x="%.0f" y="%.0f" font-size="10" fill="#333" text-anchor="middle">%d</text>`,//sub names
+				`<rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" fill="%s" />
+				<text x="%.2f" y="%.2f" font-size="10" fill="#333" text-anchor="middle">%d</text>`,
 				x, baseY-h, barWidth, h, color, x+(barWidth/2), baseY-h-5, mark,
 			))
 		}
 
-		groupCenter := groupStart + float64(len(tests))*(barWidth+barGap)/2
+		// X-axis subject label
+		groupCenter := groupStart + groupWidth/2
 		xLabels.WriteString(fmt.Sprintf(
-			`<text x="%.0f" y="%.0f" font-size="10" fill="#000" font-weight="bold" text-anchor="middle">%s</text>`,
+			`<text x="%.2f" y="%.0f" font-size="10" fill="#000" font-weight="bold" text-anchor="middle">%s</text>`,
 			groupCenter, baseY+15, subj,
 		))
 	}
 
-	// --- Legend (Below the Chart, Centered) ---
-	legendStartX := 50.0
+	legendWidths := 0.0
+
+	for _, test := range tests {
+	    legendWidths += 12.0 + 5.0 + float64(len(test.Name)) * 6.5 + 20.0 
+	}
+	
+	svgWidth := 800.0
+	legendStartX := (svgWidth / 2.0) - (legendWidths / 2.0)
+
 	legendY := baseY + 25
+	currentLegendX := legendStartX
+	
 	for i, test := range tests {
 		color := colors[i%len(colors)]
-		x := legendStartX + float64(i)*100.0
+		
+		// Rectangle
 		legends.WriteString(fmt.Sprintf(
-			`<rect x="%.0f" y="%.0f" width="12" height="12" fill="%s" />
-			 <text x="%.0f" y="%.0f" font-size="12" fill="#333">%s</text>`,
-			x, legendY, color, x+20, legendY+10, test.Name,
+			`<rect x="%.2f" y="%.0f" width="12" height="12" fill="%s" />`,
+			currentLegendX, legendY, color,
 		))
+		
+		// Text
+		textX := currentLegendX + 20
+		legends.WriteString(fmt.Sprintf(
+			`<text x="%.2f" y="%.0f" font-size="12" fill="#333">%s</text>`,
+			textX, legendY+10, test.Name,
+		))
+	
+		currentLegendX += 12.0 + 5.0 + float64(len(test.Name)) * 6.5 + 20.0
 	}
 
 	// --- Return Final HTML ---
 	return fmt.Sprintf(`
 <div class="chart-section" style="page-break-inside: avoid; text-align: center; margin-top: 20px;">
-	<div style="width:100%%; height: %dpx; max-width: 95%%; margin: 10px auto;">
-		<svg width="100%%" height="100%%" viewBox="0 0 800 %d" xmlns="http://www.w3.org/2000/svg">
-			<g transform="translate(10, 10)">
-				%s
-				%s
-				%s
-				%s
-			</g>
-		</svg>
-	</div>
+    <div style="width:100%%; height: %dpx; max-width: 95%%; margin: 10px auto;">
+        <svg width="100%%" height="100%%" viewBox="0 0 800 %d" xmlns="http://www.w3.org/2000/svg">
+            <g transform="translate(10, 10)">
+                %s
+                %s
+                %s
+                %s
+            </g>
+        </svg>
+    </div>
 </div>`,
 		chartHeight, chartHeight,
 		buildAxes(),
@@ -1100,7 +1176,6 @@ buildAxes := func() string {
 		legends.String(),
 	)
 }
-
 
 // -----------------------------
 // PDF GENERATION
@@ -1213,3 +1288,5 @@ func newStudent(base StudentDetailsConfig, name, rollNo, father, mother, class, 
 	cfg.ShowPhoto = showPhoto
 	return cfg
 }
+
+
