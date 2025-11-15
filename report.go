@@ -41,6 +41,23 @@ type StudentReportData struct {
 	CoScholasticMarks []CoScholasticMark
 
 }
+
+type GradeDetailsConfig struct {
+	PrintGradeTextFromGradeScale bool
+	Print100GradeScale bool
+	EnablePrintGradeScale bool
+	EnableToPrintCoScholasticGradeScale bool
+	EnableGradeScale bool
+	EnableHorizontalTable bool
+
+}
+type GradeScaleData struct {
+	GradeConfig     GradeDetailsConfig
+	
+	Grades map[string]string
+
+}
+
 type TitleConfig struct {
     TitleColor       string
 	TitleFontSize    int
@@ -500,7 +517,7 @@ studentsData := []StudentReportData{
 		Subjects:                   []string{"English", "Math", "Science"},
 	}
 
-	
+
 
 html := generateAllStudentsHTML(cfg, instCfg, titleCfg, acdCfg, studentsData)
 
@@ -529,6 +546,8 @@ func generateAllStudentsHTML(
 	titleCfg TitleConfig,
 	acdConfig ReportConfig,
 	students []StudentReportData,
+	
+	
 ) string {
 	var allReportsHTML string
 
@@ -537,9 +556,9 @@ func generateAllStudentsHTML(
 		titleHTML := generateTitleHTML(titleCfg)
 		studentDetailsHTML := generateStudentDetailsHTML(studentData.StudentCfg)
 		academicDetailsHTML := generateAcademicDetails(acdConfig, studentData.Tests)
-coSholasticDetailsHTML := generateCoScholasticHTML(acdConfig,studentData.CoScholasticMarks,)  
+coSholasticDetailsHTML := generateCoScholasticHTML(acdConfig,studentData.CoScholasticMarks)  
       chartHTML := generateStudentChartHTML(studentData.Tests)
-
+// gradeDetailsHTML := generateGradeDetailsHTML(gradeScaleData[0].Grades, gradeScaleData[0].GradeConfig)
 		var bgCSS, wmCSS string
 		if cfg.ShowBackground && cfg.BackgroundImage != "" {
 			bgCSS = fmt.Sprintf(`background-image: url('data:image/png;base64,%s'); background-repeat: no-repeat; background-size: cover; background-position: center;`, cfg.BackgroundImage)
@@ -1306,6 +1325,8 @@ func generateCoScholasticHTML(cfg ReportConfig ,marks []CoScholasticMark,) strin
 </div>
 `,cfg.Table2Tittle, cfg.TableDataFontSize, headerCols.String(), bodyRows.String())
 }
+
+
 // -----------------------------
 // PDF GENERATION
 // -----------------------------
