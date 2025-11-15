@@ -675,7 +675,7 @@ SignaturesHtml := generateSignatureTableHTML(sigCfg, studentData.Tests)
 				<div class="content-with-watermark" style="%s">
 					%s <!-- Institution Header -->
 					<hr style="border:0.5px solid black">
-					<b>%s ></b>  <!-- title --
+					<b>%s</b>  <!-- title -->
 					<div>%s</div>   <!-- std details -->
 					<div>%s </div> <!-- acd details -->
 					<div>%s</div>  <!-- nonacd details -->
