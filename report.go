@@ -211,6 +211,23 @@ type SignatureConfig struct {
     PrintFontFamily          string
 	SignatureType string
 }
+
+type OtherDetailsConfig struct {
+		printOtherDetails string
+	tableFontSize int
+	printFontFamily string
+	printHeightWeight bool
+	stdHeight string
+	stdWeight string
+}
+
+type AttendanceDetailsConfig struct {
+	PrintTitle string
+	TableFontSize int
+	EnableAttendaceDetails bool
+	TotalWorkingDays int
+	PresentDays int
+}
 // -----------------------------
 // MAIN
 // -----------------------------
@@ -557,9 +574,22 @@ sigCfg := SignatureConfig{
    
 	SignatureType :"O",
 }
-
-
-html := generateAllStudentsHTML(cfg, instCfg, titleCfg, acdCfg, studentsData,sigCfg)
+otherDetailsCfg := OtherDetailsConfig{
+	printOtherDetails : "Other Details",
+	tableFontSize :12,
+	printHeightWeight: true,
+	stdHeight: "100",
+	stdWeight: "100",
+}
+attendanceDetailsCfg := AttendanceDetailsConfig{
+	PrintTitle : "Attendance Details",
+	
+	TableFontSize :12,
+	EnableAttendaceDetails: true,
+	TotalWorkingDays: 100,
+	PresentDays: 90,
+}
+html := generateAllStudentsHTML(cfg, instCfg, titleCfg, acdCfg, studentsData,otherDetailsCfg,attendanceDetailsCfg,sigCfg)
 
 	// ✅ Generate a single PDF file containing all pages
 	if err := generatePDF(html, "All_Students_Report.pdf"); err != nil {
@@ -605,8 +635,9 @@ func generateAllStudentsHTML(
 	titleCfg TitleConfig,
 	acdConfig ReportConfig,
 	students []StudentReportData,
+	otherDetailsCfg OtherDetailsConfig,
+	attendanceDetailsCfg AttendanceDetailsConfig,
 	sigCfg SignatureConfig,
-	
 ) string {
 	var allReportsHTML string
 
@@ -619,6 +650,9 @@ coSholasticDetailsHTML := generateCoScholasticHTML(acdConfig,studentData.CoSchol
       chartHTML := generateStudentChartHTML(studentData.Tests)
 gradeDetailsHtml := generateGradeDetailsHTML(DefaultGradeConfig, DefaultGradeScale)	
 
+
+otherDetailsHtml := generateOtherDetails(otherDetailsCfg)
+attendanceDetailsHtml := generateAttendanceDetails(attendanceDetailsCfg)
 SignaturesHtml := generateSignatureTableHTML(sigCfg, studentData.Tests)
 
 	var bgCSS, wmCSS string
@@ -641,19 +675,20 @@ SignaturesHtml := generateSignatureTableHTML(sigCfg, studentData.Tests)
 				<div class="content-with-watermark" style="%s">
 					%s <!-- Institution Header -->
 					<hr style="border:0.5px solid black">
-					<b>%s</b>
-					
-					<div>%s</div>
-					<div>%s</div>
-					<div>%s</div>
-                   <div>%s</div>
-				     <div>%s</div>
-					 <div>%s</div>
+					<b>%s ></b>  <!-- title --
+					<div>%s</div>   <!-- std details -->
+					<div>%s </div> <!-- acd details -->
+					<div>%s</div>  <!-- nonacd details -->
+                   <div>%s </div> <!-- chart details -->
+				     <div>%s</div> <!-- grade details -->
+					 <div>%s</div> <!-- other details -->
+					  <div>%s</div> <!-- Att details -->
+					 <div>%s</div> <!-- signature details -->
 				</div>
 			</div>
 		</div>
 		`, borderStyle, cfg.MarginTop, cfg.MarginRight, cfg.MarginBottom, cfg.MarginLeft,
-			bgCSS, wmCSS, instHTML, titleHTML, studentDetailsHTML, academicDetailsHTML,coSholasticDetailsHTML,chartHTML,gradeDetailsHtml,SignaturesHtml)
+			bgCSS, wmCSS, instHTML, titleHTML, studentDetailsHTML, academicDetailsHTML,coSholasticDetailsHTML,chartHTML,gradeDetailsHtml,otherDetailsHtml,attendanceDetailsHtml,SignaturesHtml)
 		allReportsHTML += studentPageHTML
 	}
 
@@ -1573,6 +1608,108 @@ func generateSignatureTableHTML(cfg SignatureConfig, tests []Test) string {
     return html
 }
 }
+
+func generateOtherDetails(cfg OtherDetailsConfig) string {
+
+    html := `
+<table style="width:100%; border-collapse: collapse; margin-top:10px;  font-size:` + fmt.Sprintf("%d", cfg.tableFontSize) + `px;">
+    <thead>
+        <tr style="background-color:#f5f5f5;">
+            <th colspan="4" 
+                style="padding:2px; text-align:center;
+               
+            ">
+                ` + cfg.printOtherDetails + `
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+`
+
+    // ---------------- Height + Weight Row ----------------
+    if cfg.printHeightWeight {
+        html += `
+        <tr>
+            <td style="border:1px solid #000; padding:2px;
+                
+            ">
+                Height
+            </td>
+
+            <td style="border:1px solid #000; text-align:center;
+                
+            ">
+                ` + cfg.stdHeight + `
+            </td>
+
+            <td style="border:1px solid #000; padding:6px;
+                
+            ">
+                Weight
+            </td>
+
+            <td style="border:1px solid #000; text-align:center;
+                
+            ">
+                ` + cfg.stdWeight + `
+            </td>
+        </tr>
+`
+    }
+
+    html += `
+    </tbody>
+</table>
+`
+    return html
+}
+func generateAttendanceDetails(cfg AttendanceDetailsConfig) string {
+
+    html := `
+<table style="width:100%; border-collapse: collapse; margin-top:10px; font-size:` + 
+        fmt.Sprintf("%d", cfg.TableFontSize) + `px;">
+    <thead>
+        <tr style="background-color:#f5f5f5;">
+            <th colspan="4" style="padding:2px; text-align:center;">
+                ` + cfg.PrintTitle + `
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+`
+
+if cfg.EnableAttendaceDetails {
+    html += fmt.Sprintf(`
+        <tr>
+            <td style="border:1px solid #000; padding:2px;">
+                Total working days
+            </td>
+
+            <td style="border:1px solid #000; text-align:center;">
+                %d
+            </td>
+
+            <td style="border:1px solid #000; padding:6px;">
+                Total Present Days
+            </td>
+
+            <td style="border:1px solid #000; text-align:center;">
+                %d
+            </td>
+        </tr>`,
+        cfg.TotalWorkingDays,
+        cfg.PresentDays,
+    )
+}
+
+    html += `
+    </tbody>
+</table>
+`
+
+    return html
+}
+
 
 // -----------------------------
 // PDF GENERATION
