@@ -209,6 +209,7 @@ type SignatureConfig struct {
 
     TableFontSize            int
     PrintFontFamily          string
+	SignatureType string
 }
 // -----------------------------
 // MAIN
@@ -539,9 +540,26 @@ studentsData := []StudentReportData{
 		ShowTestName:               false,
 		Subjects:                   []string{"English", "Math", "Science"},
 	}
+sigCfg := SignatureConfig{
+    EnableClassTeacherSign:  true,
+    EnablePrincipalSign:     true,
+    EnableHeadSignature:     true,
+
+    PrinClassTeacherSign:    "Class Teacher",
+    PrintPrincipalSign:      "Principal",
+    PrintHeadSignature:      "Head Master",
+
+    ClassTeacherImage:       toBase64("./assets/signature.png"),
+    PrincipalImage:          toBase64("./assets/signature.png"),
+    HeadImage:               toBase64("./assets/signature.png"),
+
+    TableFontSize:           12,
+   
+	SignatureType :"O",
+}
 
 
-html := generateAllStudentsHTML(cfg, instCfg, titleCfg, acdCfg, studentsData)
+html := generateAllStudentsHTML(cfg, instCfg, titleCfg, acdCfg, studentsData,sigCfg)
 
 	// ✅ Generate a single PDF file containing all pages
 	if err := generatePDF(html, "All_Students_Report.pdf"); err != nil {
@@ -587,7 +605,7 @@ func generateAllStudentsHTML(
 	titleCfg TitleConfig,
 	acdConfig ReportConfig,
 	students []StudentReportData,
-	
+	sigCfg SignatureConfig,
 	
 ) string {
 	var allReportsHTML string
@@ -600,6 +618,9 @@ func generateAllStudentsHTML(
 coSholasticDetailsHTML := generateCoScholasticHTML(acdConfig,studentData.CoScholasticMarks)  
       chartHTML := generateStudentChartHTML(studentData.Tests)
 gradeDetailsHtml := generateGradeDetailsHTML(DefaultGradeConfig, DefaultGradeScale)	
+
+SignaturesHtml := generateSignatureTableHTML(sigCfg, studentData.Tests)
+
 	var bgCSS, wmCSS string
 		if cfg.ShowBackground && cfg.BackgroundImage != "" {
 			bgCSS = fmt.Sprintf(`background-image: url('data:image/png;base64,%s'); background-repeat: no-repeat; background-size: cover; background-position: center;`, cfg.BackgroundImage)
@@ -627,12 +648,12 @@ gradeDetailsHtml := generateGradeDetailsHTML(DefaultGradeConfig, DefaultGradeSca
 					<div>%s</div>
                    <div>%s</div>
 				     <div>%s</div>
-					
+					 <div>%s</div>
 				</div>
 			</div>
 		</div>
 		`, borderStyle, cfg.MarginTop, cfg.MarginRight, cfg.MarginBottom, cfg.MarginLeft,
-			bgCSS, wmCSS, instHTML, titleHTML, studentDetailsHTML, academicDetailsHTML,coSholasticDetailsHTML,chartHTML,gradeDetailsHtml)
+			bgCSS, wmCSS, instHTML, titleHTML, studentDetailsHTML, academicDetailsHTML,coSholasticDetailsHTML,chartHTML,gradeDetailsHtml,SignaturesHtml)
 		allReportsHTML += studentPageHTML
 	}
 
@@ -1438,7 +1459,120 @@ func generateGradeDetailsHTML(cfg GradeConfig, gradeScale []struct {
 	return html
 }
 
+func generateSignatureTableHTML(cfg SignatureConfig, tests []Test) string {
+	if cfg.SignatureType == "T" {
+ html := `<table style="width:100%; border-collapse: collapse; margin-top:20px;" class="signature-table">`
 
+    // ---------- HEADER ----------
+   html += `<tr><th style="text-align:left">Signature</th>`
+  for _, test := range tests {
+			html += fmt.Sprintf(`<th >%s</th>`, test.Name)
+		}
+    html += `</tr>`
+
+    // ---------- CLASS TEACHER SIGN ----------
+    if cfg.EnableClassTeacherSign {
+        html += `<tr>`
+        html += fmt.Sprintf(`<td style="border:1px solid #000; padding:2px; text-align:left; font-size:%dpx; font-family:%s;">%s</td>`,
+            cfg.TableFontSize, cfg.PrintFontFamily, cfg.PrinClassTeacherSign)
+
+        for range tests {
+            if cfg.ClassTeacherImage != "" {
+                html += fmt.Sprintf(`<td style="border:1px solid #000; text-align:center;"><img src="%s" style="height:40px;" /></td>`, cfg.ClassTeacherImage)
+            } else {
+                html += `<td style="border:1px solid #000;"></td>`
+            }
+        }
+        html += `</tr>`
+    }
+
+    // ---------- SIGNATURE FROM INSTITUTE ----------
+    if cfg.EnableSignatureFromInst {
+        html += `<tr>`
+        html += fmt.Sprintf(`<td style="border:1px solid #000; padding:6px; text-align:left; font-size:%dpx; font-family:%s;">%s</td>`,
+            cfg.TableFontSize, cfg.PrintFontFamily, cfg.PrintsignatureFromInst)
+
+        for range tests {
+            html += `<td style="border:1px solid #000;"></td>`
+        }
+        html += `</tr>`
+    }
+
+    // ---------- PARENT SIGN ----------
+    if cfg.EnableParentSign {
+        html += `<tr>`
+        html += fmt.Sprintf(`<td style="border:1px solid #000; padding:6px; text-align:left; font-size:%dpx; font-family:%s;">%s</td>`,
+            cfg.TableFontSize, cfg.PrintFontFamily, cfg.PrintParentSign)
+
+        for range tests {
+            html += `<td style="border:1px solid #000;"></td>`
+        }
+        html += `</tr>`
+    }
+
+    // ---------- PRINCIPAL SIGN ----------
+    if cfg.EnablePrincipalSign {
+        html += `<tr>`
+        html += fmt.Sprintf(`<td style="border:1px solid #000; padding:6px; text-align:left; font-size:%dpx; font-family:%s;">%s</td>`,
+            cfg.TableFontSize, cfg.PrintFontFamily, cfg.PrintPrincipalSign)
+
+        for range tests {
+            if cfg.PrincipalImage != "" {
+                html += fmt.Sprintf(`<td style="border:1px solid #000; text-align:left;"><img src="%s" style="height:40px;" /></td>`, cfg.PrincipalImage)
+            } else {
+                html += `<td style="border:1px solid #000;"></td>`
+            }
+        }
+        html += `</tr>`
+    }
+
+    // ---------- HEAD SIGN ----------
+    if cfg.EnableHeadSignature {
+        html += `<tr>`
+        html += fmt.Sprintf(`<td style="border:1px solid #000; padding:6px; text-align:left; font-size:%dpx; font-family:%s;">%s</td>`,
+            cfg.TableFontSize, cfg.PrintFontFamily, cfg.PrintHeadSignature)
+
+        for range tests {
+            if cfg.HeadImage != "" {
+                html += fmt.Sprintf(`<td style="border:1px solid #000; text-align:left;"><img src="%s" style="height:40px;" /></td>`, cfg.HeadImage)
+            } else {
+                html += `<td style="border:1px solid #000;"></td>`
+            }
+        }
+        html += `</tr>`
+    }
+
+    html += `</tbody></table>`
+    return html
+	} else { html := `
+    <div style="width:100%; margin-top:40px; display:flex; justify-content:space-between; text-align:center;">
+
+        <div>
+            <div style="border-top:1px dashed #000; width:100%; margin-bottom:3px;"></div>
+            <span style="font-weight:bold; font-size:` + fmt.Sprintf("%d", cfg.TableFontSize) + `px;">
+                Class Teacher's Signature
+            </span>
+        </div>
+
+        <div >
+            <div style="border-top:1px dashed #000; width:100%; margin-bottom:3px;"></div>
+            <span style="font-weight:bold; font-size:` + fmt.Sprintf("%d", cfg.TableFontSize) + `px;">
+                Principal Signature
+            </span>
+        </div>
+
+        <div >
+            <div style="border-top:1px dashed #000; width:100%; margin-bottom:3px;"></div>
+            <span style="font-weight:bold; font-size:` + fmt.Sprintf("%d", cfg.TableFontSize) + `px;">
+                Parent's Signature
+            </span>
+        </div>
+
+    </div>`
+
+    return html
+}
+}
 
 // -----------------------------
 // PDF GENERATION
