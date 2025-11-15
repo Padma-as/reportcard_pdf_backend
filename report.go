@@ -51,12 +51,7 @@ type GradeDetailsConfig struct {
 	EnableHorizontalTable bool
 
 }
-type GradeScaleData struct {
-	GradeConfig     GradeDetailsConfig
-	
-	Grades map[string]string
 
-}
 
 type TitleConfig struct {
     TitleColor       string
@@ -187,6 +182,34 @@ type CoScholasticMark struct {
 	Grade   string
 	Remarks string
 }
+
+type GradeConfig struct {
+	EnableTitle bool
+	IsVerticalTable bool
+	EnableGradeScale bool
+	PrintTitle string 
+	
+}
+type SignatureConfig struct {
+    EnableClassTeacherSign   bool
+    EnableSignatureFromInst  bool
+    EnableParentSign         bool
+    EnablePrincipalSign      bool
+    EnableHeadSignature      bool
+
+    PrinClassTeacherSign     string
+    PrintsignatureFromInst   string
+    PrintParentSign          string
+    PrintPrincipalSign       string
+    PrintHeadSignature       string
+
+    ClassTeacherImage        string
+    PrincipalImage           string
+    HeadImage                string
+
+    TableFontSize            int
+    PrintFontFamily          string
+}
 // -----------------------------
 // MAIN
 // -----------------------------
@@ -271,7 +294,7 @@ func main() {
 		ShowMobile:       true,
 		ShowPhoto:        true,
 		DisplayTwoColumn: true,
-		FontSize:         14,
+		FontSize:         10,
 		FontColor:        "#000",
 		PhotoBase64:      toBase64("./assets/colorwatermark.png"),
 		StudentPhotoX:    80,
@@ -518,7 +541,6 @@ studentsData := []StudentReportData{
 	}
 
 
-
 html := generateAllStudentsHTML(cfg, instCfg, titleCfg, acdCfg, studentsData)
 
 	// ✅ Generate a single PDF file containing all pages
@@ -528,7 +550,26 @@ html := generateAllStudentsHTML(cfg, instCfg, titleCfg, acdCfg, studentsData)
 	fmt.Println("✅ Generated: All_Students_Report.pdf")
 }
 
-
+var DefaultGradeScale = []struct {
+	Grade string
+	Range string
+}{
+	
+	{"A+", "90.01 - 100 %"},
+	{"A", "80.01 - 90 %"},
+	{"B+", "70.01 - 80 %"},
+	{"B",  "60.01 - 70 %"},
+	{"C+", "50.01 - 60 %"},
+	{"C",  "40.01 - 50 %"},
+	{"D",  "32.01 - 40 %"},
+	{"E",  "0 - 32 %"},
+}
+var DefaultGradeConfig = GradeConfig{
+	EnableTitle:      true,
+	IsVerticalTable:  false,
+	EnableGradeScale: true,
+	PrintTitle:       "Grade Details",
+}
 // -----------------------------
 func toBase64(path string) string {
 	data, err := os.ReadFile(path)
@@ -558,8 +599,8 @@ func generateAllStudentsHTML(
 		academicDetailsHTML := generateAcademicDetails(acdConfig, studentData.Tests)
 coSholasticDetailsHTML := generateCoScholasticHTML(acdConfig,studentData.CoScholasticMarks)  
       chartHTML := generateStudentChartHTML(studentData.Tests)
-// gradeDetailsHTML := generateGradeDetailsHTML(gradeScaleData[0].Grades, gradeScaleData[0].GradeConfig)
-		var bgCSS, wmCSS string
+gradeDetailsHtml := generateGradeDetailsHTML(DefaultGradeConfig, DefaultGradeScale)	
+	var bgCSS, wmCSS string
 		if cfg.ShowBackground && cfg.BackgroundImage != "" {
 			bgCSS = fmt.Sprintf(`background-image: url('data:image/png;base64,%s'); background-repeat: no-repeat; background-size: cover; background-position: center;`, cfg.BackgroundImage)
 		}
@@ -585,12 +626,13 @@ coSholasticDetailsHTML := generateCoScholasticHTML(acdConfig,studentData.CoSchol
 					<div>%s</div>
 					<div>%s</div>
                    <div>%s</div>
+				     <div>%s</div>
 					
 				</div>
 			</div>
 		</div>
 		`, borderStyle, cfg.MarginTop, cfg.MarginRight, cfg.MarginBottom, cfg.MarginLeft,
-			bgCSS, wmCSS, instHTML, titleHTML, studentDetailsHTML, academicDetailsHTML,coSholasticDetailsHTML,chartHTML)
+			bgCSS, wmCSS, instHTML, titleHTML, studentDetailsHTML, academicDetailsHTML,coSholasticDetailsHTML,chartHTML,gradeDetailsHtml)
 		allReportsHTML += studentPageHTML
 	}
 
@@ -1060,16 +1102,16 @@ html += fmt.Sprintf("<td class=\"%s\">%s</td>", "subject", subj)
 func generateStudentChartHTML(tests []Test) string {
 	if len(tests) == 0 {
 		return `
-<div class="chart-section" style="page-break-inside: avoid; text-align: center; margin-top: 20px;">
+<div class="chart-section" style="page-break-inside: avoid; text-align: center; margin-top: 10px;">
     <p style="color: #666;">Not enough test data to generate a performance chart.</p>
 </div>`
 	}
 
 	// --- Chart Config (Updated for Dynamic Width) ---
 	const (
-		maxHeight   = 90.0  // Max bar height = 100 marks
+		maxHeight   = 80.0  // Max bar height = 100 marks
 		baseY       = 100.0 // Y position of X-axis (0 marks)
-		chartHeight = 250   // Increased to accommodate legends
+		chartHeight = 140   // Increased to accommodate legends
 		// Max width of the drawing area for bars, excluding Y-axis and margins
 		chartDrawWidth = 720.0
 		leftMargin     = 50.0 // Space for Y-axis labels
@@ -1090,7 +1132,7 @@ func generateStudentChartHTML(tests []Test) string {
 	// Guard against no subjects
 	if len(subjects) == 0 {
 		return `
-<div class="chart-section" style="page-break-inside: avoid; text-align: center; margin-top: 20px;">
+<div class="chart-section" style="page-break-inside: avoid; text-align: center; margin-top: 10px;">
     <p style="color: #666;">No subject data found to generate a performance chart.</p>
 </div>`
 	}
@@ -1325,6 +1367,77 @@ func generateCoScholasticHTML(cfg ReportConfig ,marks []CoScholasticMark,) strin
 </div>
 `,cfg.Table2Tittle, cfg.TableDataFontSize, headerCols.String(), bodyRows.String())
 }
+func generateGradeDetailsHTML(cfg GradeConfig, gradeScale []struct {
+	Grade string
+	Range string
+}) string {
+
+	if !cfg.EnableGradeScale {
+		return ""
+	}
+
+	html := `<div style="margin-top:0px;">`
+
+	// Title
+	if cfg.EnableTitle {
+		title := cfg.PrintTitle
+		if title == "" {
+			title = "Grade Details"
+		}
+		html += fmt.Sprintf(`<b style="font-size:18px;">%s</b><br/>`, title)
+	}
+
+	// ===========================
+	//   HORIZONTAL TABLE
+	// ===========================
+	if !cfg.IsVerticalTable {
+		html += `<table style="width:100%; border-collapse: collapse; margin-top:0px; text-align:center;">
+			<tr>
+				<th style="border:1px solid #000; padding:6px;">Grade</th>`
+
+		for _, g := range gradeScale {
+			html += fmt.Sprintf(
+				`<th style="border:1px solid #000; padding:6px;">%s</th>`,
+				g.Grade,
+			)
+		}
+
+		html += `</tr><tr>
+			<th style="border:1px solid #000; padding:6px;">Marks-Range</th>`
+
+		for _, g := range gradeScale {
+			html += fmt.Sprintf(
+				`<td style="border:1px solid #000; padding:6px;">%s</td>`,
+				g.Range,
+			)
+		}
+
+		html += `</tr></table></div>`
+		return html
+	}
+
+	// ===========================
+	//   VERTICAL TABLE (FIXED)
+	// ===========================
+
+	html += `<table style="width:40%; border-collapse: collapse; margin-top:10px;">
+		<tr>
+			<th style="border:1px solid #000; padding:6px; width:30%;">Grade</th>
+			<th style="border:1px solid #000; padding:6px;">Marks-Range</th>
+		</tr>`
+
+	for _, g := range gradeScale {
+		html += fmt.Sprintf(`
+		<tr>
+			<td style="border:1px solid #000; padding:6px;">%s</td>
+			<td style="border:1px solid #000; padding:6px;">%s</td>
+		</tr>`, g.Grade, g.Range)
+	}
+
+	html += `</table></div>`
+	return html
+}
+
 
 
 // -----------------------------
