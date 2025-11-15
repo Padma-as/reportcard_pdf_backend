@@ -576,7 +576,7 @@ sigCfg := SignatureConfig{
 }
 otherDetailsCfg := OtherDetailsConfig{
 	printOtherDetails : "Other Details",
-	tableFontSize :12,
+	tableFontSize :10,
 	printHeightWeight: true,
 	stdHeight: "100",
 	stdWeight: "100",
@@ -584,7 +584,7 @@ otherDetailsCfg := OtherDetailsConfig{
 attendanceDetailsCfg := AttendanceDetailsConfig{
 	PrintTitle : "Attendance Details",
 	
-	TableFontSize :12,
+	TableFontSize :10,
 	EnableAttendaceDetails: true,
 	TotalWorkingDays: 100,
 	PresentDays: 90,
@@ -1642,7 +1642,7 @@ func generateOtherDetails(cfg OtherDetailsConfig) string {
                 ` + cfg.stdHeight + `
             </td>
 
-            <td style="border:1px solid #000; padding:6px;
+            <td style="border:1px solid #000; padding:2px;
                 
             ">
                 Weight
@@ -1689,7 +1689,7 @@ if cfg.EnableAttendaceDetails {
                 %d
             </td>
 
-            <td style="border:1px solid #000; padding:6px;">
+            <td style="border:1px solid #000; padding:2px;">
                 Total Present Days
             </td>
 
